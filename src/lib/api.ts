@@ -52,9 +52,20 @@ export interface Business {
   id: string;
   name: string;
   url_slug: string;
+  status: "pending" | "active" | "suspended";
   subscription_tier: string;
   logo_url: string | null;
-  settings: Record<string, unknown>;
+  settings: {
+    category?: string;
+    description?: string;
+    owner_name?: string;
+    accentColor?: string;
+    backgroundColor?: string;
+    [key: string]: unknown;
+  };
+  owner_name: string | null;
+  owner_email: string | null;
+  activated_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -89,6 +100,26 @@ export async function uploadCertificate(
 export async function fetchBusinesses(): Promise<Business[]> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/businesses`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function activateBusiness(id: string): Promise<Business> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}/activate`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function suspendBusiness(id: string): Promise<Business> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}/suspend`, {
+    method: "POST",
+    headers,
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
