@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   Card,
@@ -36,37 +37,8 @@ import {
   suspendBusiness,
   type Business,
 } from "@/lib/api";
+import { BusinessInitials, PlanBadge } from "@/components/business-utils";
 import { Loader2 } from "lucide-react";
-
-function BusinessInitials({ name, color }: { name: string; color?: string }) {
-  const initials = name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return (
-    <div
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white"
-      style={{ backgroundColor: color || "#6366f1" }}
-    >
-      {initials}
-    </div>
-  );
-}
-
-function PlanBadge({ tier }: { tier: string }) {
-  const variant = tier === "pro" ? "default" : "outline";
-  const className =
-    tier === "pro"
-      ? "bg-violet-100 text-violet-700 border-violet-200"
-      : "bg-secondary text-secondary-foreground";
-  return (
-    <Badge variant={variant} className={className}>
-      {tier}
-    </Badge>
-  );
-}
 
 export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -166,7 +138,11 @@ export default function BusinessesPage() {
                       color={biz.settings?.accentColor}
                     />
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base">{biz.name}</CardTitle>
+                      <CardTitle className="text-base">
+                        <Link href={`/businesses/${biz.id}`} className="hover:underline">
+                          {biz.name}
+                        </Link>
+                      </CardTitle>
                       <CardDescription className="font-mono text-xs">
                         /{biz.url_slug}
                       </CardDescription>
@@ -284,7 +260,9 @@ export default function BusinessesPage() {
                             color={biz.settings?.accentColor}
                           />
                           <div>
-                            <div className="font-medium">{biz.name}</div>
+                            <Link href={`/businesses/${biz.id}`} className="font-medium hover:underline">
+                              {biz.name}
+                            </Link>
                             <div className="font-mono text-xs text-muted-foreground">
                               /{biz.url_slug}
                             </div>
@@ -385,7 +363,9 @@ export default function BusinessesPage() {
                             color={biz.settings?.accentColor}
                           />
                           <div>
-                            <div className="font-medium">{biz.name}</div>
+                            <Link href={`/businesses/${biz.id}`} className="font-medium hover:underline">
+                              {biz.name}
+                            </Link>
                             <div className="font-mono text-xs text-muted-foreground">
                               /{biz.url_slug}
                             </div>
