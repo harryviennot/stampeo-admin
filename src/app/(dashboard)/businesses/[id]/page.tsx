@@ -14,12 +14,13 @@ import {
   Users,
   CircleDot,
   Gift,
-  Palette,
   ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WalletCard } from "@/components/card/WalletCard";
+import { ScaledCardWrapper } from "@/components/card/ScaledCardWrapper";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -357,7 +358,7 @@ export default function BusinessDetailPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Total Customers"
           value={stats?.total_customers}
@@ -392,40 +393,42 @@ export default function BusinessDetailPage() {
           loading={statsLoading}
           icon={<Gift className="h-4 w-4" />}
         />
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Active Design
-                </p>
-                {statsLoading ? (
-                  <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" />
-                ) : stats?.active_design ? (
-                  <div>
-                    <p className="text-sm font-bold">
-                      {stats.active_design.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {stats.active_design.organization_name}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No active design
-                  </p>
-                )}
-              </div>
-              <Badge
-                className="bg-secondary text-secondary-foreground"
-                variant="secondary"
-              >
-                <Palette className="h-4 w-4" />
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Active Design Preview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Active Design</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {statsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : stats?.active_design ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-full max-w-[320px]">
+                <ScaledCardWrapper
+                  baseWidth={280}
+                  aspectRatio={1.282}
+                  minScale={0.6}
+                >
+                  <WalletCard
+                    design={stats.active_design}
+                    stamps={3}
+                    showQR={false}
+                  />
+                </ScaledCardWrapper>
+              </div>
+              <p className="text-sm font-medium">{stats.active_design.name}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No active design
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Info card */}

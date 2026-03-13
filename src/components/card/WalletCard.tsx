@@ -1,0 +1,407 @@
+"use client";
+
+import React, { useRef, useState, useMemo, useEffect } from "react";
+import { CardDesign } from "@/types/design";
+import {
+  StampIconSvg,
+  StampIconType,
+} from "@/components/card/StampIconSvg";
+import {
+  computeCardColors,
+  getInitials,
+  calculateStampLayout,
+} from "@/lib/card-utils";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface WalletCardProps {
+  design: Partial<CardDesign>;
+  stamps?: number;
+  totalStamps?: number;
+  organizationName?: string;
+  showQR?: boolean;
+  showSecondaryFields?: boolean;
+  className?: string;
+}
+
+// ============================================================================
+// Sub-components
+// ============================================================================
+
+interface StampGridProps {
+  readonly totalStamps: number;
+  readonly filledCount: number;
+  readonly colors: ReturnType<typeof computeCardColors>;
+  readonly stampIcon: StampIconType;
+  readonly rewardIcon: StampIconType;
+  readonly containerWidth: number;
+  readonly containerHeight: number;
+}
+
+function StampGrid({
+  totalStamps,
+  filledCount,
+  colors,
+  stampIcon,
+  rewardIcon,
+  containerWidth,
+  containerHeight,
+}: StampGridProps) {
+  const layout = useMemo(() => {
+    return calculateStampLayout(totalStamps, containerWidth, containerHeight, 8, 11);
+  }, [totalStamps, containerWidth, containerHeight]);
+
+  const iconSize = Math.max(layout.radius * 1.2, 12);
+
+  return (
+    <div className="relative w-full" style={{ height: containerHeight }}>
+      {layout.positions.map((pos) => {
+        const isFilled = pos.globalIndex < filledCount;
+        const isLast = pos.globalIndex === totalStamps - 1;
+
+        return (
+          <div
+            key={`stamp-${pos.globalIndex}`}
+            className="absolute flex items-center justify-center rounded-full transition-all duration-300"
+            style={{
+              width: layout.diameter,
+              height: layout.diameter,
+              left: pos.centerX - pos.radius,
+              top: pos.centerY - pos.radius,
+              backgroundColor: isFilled ? colors.accentHex : colors.emptyStampBg,
+              border: isFilled ? "none" : `1px solid ${colors.emptyStampBorder}`,
+              boxShadow: isFilled ? `0 4px 12px ${colors.accentHex}40` : "none",
+            }}
+          >
+            {isFilled && (
+              <div style={{ width: iconSize, height: iconSize }}>
+                <StampIconSvg
+                  icon={isLast ? rewardIcon : stampIcon}
+                  className="w-full h-full"
+                  color={colors.iconColorHex}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface SecondaryFieldsRowProps {
+  fields: Array<{ key?: string; label: string; value: string }>;
+  colors: ReturnType<typeof computeCardColors>;
+}
+
+function SecondaryFieldsRow({ fields, colors }: SecondaryFieldsRowProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [fontSize, setFontSize] = useState(14);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const checkOverflow = () => {
+      setFontSize(14);
+      requestAnimationFrame(() => {
+        if (!container) return;
+        const containerWidth = container.offsetWidth;
+        const contentWidth = container.scrollWidth;
+        if (contentWidth > containerWidth) {
+          const scale = containerWidth / contentWidth;
+          const newSize = Math.max(10, Math.floor(14 * scale));
+          setFontSize(newSize);
+        }
+      });
+    };
+
+    checkOverflow();
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [fields]);
+
+  const fieldCount = fields.length;
+
+  return (
+    <div className="px-2.5 py-1 overflow-hidden">
+      <div ref={containerRef} className="flex items-start" style={{ gap: "8px" }}>
+        {fields.map((field, i) => {
+          const isFirst = i === 0;
+          const isLast = i === fieldCount - 1;
+
+          return (
+            <div
+              key={field.key || i}
+              className={`${isFirst ? "" : isLast ? "ml-auto" : ""}`}
+              style={{
+                textAlign: isFirst ? "left" : isLast ? "right" : "center",
+                flexShrink: isFirst || isLast ? 0 : 1,
+              }}
+            >
+              <div
+                className="text-[8px] font-bold uppercase tracking-wider transition-colors duration-300 whitespace-nowrap"
+                style={{ color: colors.mutedTextColor }}
+              >
+                {field.label}
+              </div>
+              <div
+                className="font-medium transition-colors duration-300 whitespace-nowrap"
+                style={{ color: colors.textColor, fontSize: `${fontSize}px` }}
+              >
+                {field.value}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FakeQRCode({ size = 80 }: { size?: number }) {
+  const modules = 21;
+  const moduleSize = size / modules;
+
+  const isFinderPattern = (row: number, col: number) => {
+    if (row < 7 && col < 7) return true;
+    if (row < 7 && col >= modules - 7) return true;
+    if (row >= modules - 7 && col < 7) return true;
+    return false;
+  };
+
+  const isFinderInner = (row: number, col: number) => {
+    const checkInner = (r: number, c: number, startR: number, startC: number) => {
+      const relR = r - startR;
+      const relC = c - startC;
+      if (relR >= 1 && relR <= 5 && relC >= 1 && relC <= 5) {
+        if (relR >= 2 && relR <= 4 && relC >= 2 && relC <= 4) return "black";
+        return "white";
+      }
+      return "black";
+    };
+
+    if (row < 7 && col < 7) return checkInner(row, col, 0, 0);
+    if (row < 7 && col >= modules - 7) return checkInner(row, col, 0, modules - 7);
+    if (row >= modules - 7 && col < 7) return checkInner(row, col, modules - 7, 0);
+    return null;
+  };
+
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed * 9999) * 10000;
+    return x - Math.floor(x);
+  };
+
+  const getModuleColor = (row: number, col: number) => {
+    if (row === 6 && col >= 8 && col <= modules - 9) return col % 2 === 0 ? "#000" : "#fff";
+    if (col === 6 && row >= 8 && row <= modules - 9) return row % 2 === 0 ? "#000" : "#fff";
+    if (isFinderPattern(row, col)) {
+      const inner = isFinderInner(row, col);
+      return inner === "white" ? "#fff" : "#000";
+    }
+    if (
+      (row === 7 && col < 8) || (col === 7 && row < 8) ||
+      (row === 7 && col >= modules - 8) || (col === modules - 8 && row < 8) ||
+      (row === modules - 8 && col < 8) || (col === 7 && row >= modules - 8)
+    ) return "#fff";
+    const seed = row * modules + col;
+    return seededRandom(seed) > 0.5 ? "#000" : "#fff";
+  };
+
+  const rects = [];
+  for (let row = 0; row < modules; row++) {
+    for (let col = 0; col < modules; col++) {
+      const color = getModuleColor(row, col);
+      if (color === "#000") {
+        rects.push(
+          <rect key={`${row}-${col}`} x={col * moduleSize} y={row * moduleSize} width={moduleSize} height={moduleSize} fill="#000" />
+        );
+      }
+    }
+  }
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <rect width={size} height={size} fill="#fff" />
+      {rects}
+    </svg>
+  );
+}
+
+const STRIP_ASPECT_RATIO = 1125 / 432;
+
+function StampGridContainer({
+  totalStamps,
+  filledCount,
+  colors,
+  stampIcon,
+  rewardIcon,
+}: Omit<StampGridProps, "containerWidth" | "containerHeight">) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const updateDimensions = () => {
+        if (containerRef.current) {
+          const width = containerRef.current.offsetWidth;
+          const height = width / STRIP_ASPECT_RATIO;
+          setDimensions({ width, height });
+        }
+      };
+
+      const resizeObserver = new ResizeObserver(() => updateDimensions());
+      resizeObserver.observe(containerRef.current);
+      updateDimensions();
+      return () => resizeObserver.disconnect();
+    }
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full" style={{ aspectRatio: `${STRIP_ASPECT_RATIO}` }}>
+      {dimensions.width > 0 && dimensions.height > 0 && (
+        <StampGrid
+          totalStamps={totalStamps}
+          filledCount={filledCount}
+          colors={colors}
+          stampIcon={stampIcon}
+          rewardIcon={rewardIcon}
+          containerWidth={dimensions.width}
+          containerHeight={dimensions.height}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+export function WalletCard({
+  design,
+  stamps = 3,
+  totalStamps: totalStampsProp,
+  organizationName,
+  showQR = true,
+  showSecondaryFields = true,
+  className = "",
+}: WalletCardProps) {
+  const displayName = organizationName || design.organization_name || "";
+  const initials = getInitials(displayName);
+  const totalStamps = totalStampsProp ?? design.total_stamps ?? 10;
+  const colors = computeCardColors(design);
+
+  const stampIcon = (design.stamp_icon || "checkmark") as StampIconType;
+  const rewardIcon = (design.reward_icon || "gift") as StampIconType;
+
+  const secondaryFields = design.secondary_fields || [];
+
+  return (
+    <div className={`relative w-full h-full ${className}`}>
+      <div
+        className="relative w-full h-full rounded-2xl"
+        style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.12)" }}
+      >
+        <div
+          className="absolute inset-0 rounded-2xl overflow-hidden transition-all duration-300"
+          style={{ backgroundColor: colors.bgHex }}
+        >
+          <div className="relative h-full px-0 py-0 flex flex-col z-10">
+            {/* Header */}
+            <div className="flex justify-between items-center px-2.5 py-2">
+              <div className="flex items-center gap-2">
+                {design.logo_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={design.logo_url}
+                    alt={displayName}
+                    className="h-8 w-auto max-w-[102px] object-contain transition-all duration-300"
+                  />
+                ) : (
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 flex-shrink-0"
+                    style={{ backgroundColor: colors.accentHex }}
+                  >
+                    <span className="text-white font-bold text-xs">{initials}</span>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3
+                    className="font-semibold text-sm tracking-tight leading-tight truncate transition-colors duration-300"
+                    style={{ color: colors.mutedTextColor }}
+                  >
+                    {displayName}
+                  </h3>
+                </div>
+              </div>
+              <div className="text-right items-center">
+                <div
+                  className="text-[8px] font-bold uppercase tracking-wider transition-colors duration-300"
+                  style={{ color: colors.mutedTextColor }}
+                >
+                  stamps
+                </div>
+                <div
+                  className="text-md font-medium flex items-baseline gap-1 justify-end transition-colors duration-300 leading-tight"
+                  style={{ color: colors.textColor }}
+                >
+                  {stamps} / {totalStamps}
+                </div>
+              </div>
+            </div>
+
+            {/* Stamps Grid */}
+            <div className="relative flex items-start justify-center py-2">
+              {design.strip_background_url && (
+                <div className="absolute inset-0 rounded-lg overflow-hidden" style={{ zIndex: 0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={design.strip_background_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    style={{ opacity: (design.strip_background_opacity ?? 40) / 100 }}
+                  />
+                </div>
+              )}
+              <StampGridContainer
+                totalStamps={totalStamps}
+                filledCount={stamps}
+                colors={colors}
+                stampIcon={stampIcon}
+                rewardIcon={rewardIcon}
+              />
+            </div>
+
+            {/* Secondary Fields */}
+            {showSecondaryFields && secondaryFields.length > 0 && (
+              <SecondaryFieldsRow fields={secondaryFields.slice(0, 4)} colors={colors} />
+            )}
+
+            {/* QR Code */}
+            {showQR && (
+              <div className="mt-auto pb-2 flex justify-center" style={{ borderColor: colors.emptyStampBorder }}>
+                <div className="bg-white p-2 rounded-lg">
+                  <FakeQRCode size={80} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Border */}
+        <div
+          className="absolute inset-0 rounded-2xl pointer-events-none z-30"
+          style={{
+            boxShadow: `inset 0 0 0 1px ${colors.isLightBg ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default WalletCard;

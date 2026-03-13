@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/client";
+import { CardDesign } from "@/types/design";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -94,13 +95,7 @@ export interface BusinessStats {
   stamps_this_month: number;
   stamps_last_month: number;
   total_rewards: number;
-  active_design: {
-    id: string;
-    name: string;
-    organization_name: string;
-    background_color: string;
-    foreground_color: string;
-  } | null;
+  active_design: CardDesign | null;
   certificate: {
     id: string;
     identifier: string;
