@@ -3,7 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Copy, Download, FileText, Globe, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Download,
+  FileText,
+  Globe,
+  Loader2,
+  Users,
+  CircleDot,
+  Gift,
+  Palette,
+  ShieldCheck,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,11 +33,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   fetchBusinesses,
+  fetchBusinessStats,
   activateBusiness,
   suspendBusiness,
   type Business,
+  type BusinessStats,
 } from "@/lib/api";
-import { BusinessInitials, PlanBadge, StatusBadge } from "@/components/business-utils";
+import { StatCard } from "@/components/stat-card";
+import {
+  BusinessInitials,
+  PlanBadge,
+  StatusBadge,
+} from "@/components/business-utils";
 
 const SHOWCASE_URL =
   process.env.NEXT_PUBLIC_SHOWCASE_URL || "https://stampeo.app";
@@ -42,7 +63,9 @@ export default function BusinessDetailPage() {
   const router = useRouter();
 
   const [business, setBusiness] = useState<Business | null>(null);
+  const [stats, setStats] = useState<BusinessStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
@@ -68,19 +91,38 @@ export default function BusinessDetailPage() {
     }
   }, [id, router]);
 
+  const loadStats = useCallback(async () => {
+    try {
+      const data = await fetchBusinessStats(id);
+      setStats(data);
+    } catch (err) {
+      toast.error("Failed to load business stats", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     loadBusiness();
-  }, [loadBusiness]);
+    loadStats();
+  }, [loadBusiness, loadStats]);
 
   useEffect(() => {
     if (!business) return;
     setQrLoading(true);
     import("qrcode")
       .then((QRCode) =>
-        QRCode.toDataURL(`${SHOWCASE_URL}/${business.url_slug}`, { width: 300, margin: 1 })
+        QRCode.toDataURL(`${SHOWCASE_URL}/${business.url_slug}`, {
+          width: 300,
+          margin: 1,
+        })
       )
       .then((url) => setQrCode(url))
-      .catch(() => {/* QR stays null */})
+      .catch(() => {
+        /* QR stays null */
+      })
       .finally(() => setQrLoading(false));
   }, [business]);
 
@@ -109,7 +151,11 @@ export default function BusinessDetailPage() {
     if (!qrCode || !business) return;
     try {
       const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
 
       doc.setFontSize(20);
       doc.text(business.name, 105, 40, { align: "center" });
@@ -185,10 +231,24 @@ export default function BusinessDetailPage() {
         </Button>
 
         <div className="flex items-start gap-4">
-          <BusinessInitials name={business.name} color={business.settings?.accentColor} />
+          {business.logo_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={business.logo_url}
+              alt={business.name}
+              className="h-12 w-12 rounded-xl object-cover"
+            />
+          ) : (
+            <BusinessInitials
+              name={business.name}
+              color={business.settings?.accentColor}
+            />
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold tracking-tight">{business.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {business.name}
+              </h1>
               <StatusBadge status={business.status} />
               <PlanBadge tier={business.subscription_tier} />
             </div>
@@ -208,7 +268,9 @@ export default function BusinessDetailPage() {
                     className="border-red-200 text-red-600 hover:bg-red-50"
                     disabled={acting}
                   >
-                    {acting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                    {acting && (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    )}
                     Suspend
                   </Button>
                 </AlertDialogTrigger>
@@ -216,8 +278,9 @@ export default function BusinessDetailPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Suspend business?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will suspend &quot;{business.name}&quot;. They will no longer be able
-                      to stamp customers or manage their account.
+                      This will suspend &quot;{business.name}&quot;. They will
+                      no longer be able to stamp customers or manage their
+                      account.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -239,7 +302,9 @@ export default function BusinessDetailPage() {
                   disabled={acting}
                   onClick={handleActivate}
                 >
-                  {acting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  {acting && (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  )}
                   Accept
                 </Button>
                 <AlertDialog>
@@ -257,8 +322,8 @@ export default function BusinessDetailPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Deny application?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will suspend &quot;{business.name}&quot;. The owner will not be
-                        able to use the platform.
+                        This will suspend &quot;{business.name}&quot;. The owner
+                        will not be able to use the platform.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -281,12 +346,85 @@ export default function BusinessDetailPage() {
                 disabled={acting}
                 onClick={handleActivate}
               >
-                {acting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {acting && (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                )}
                 Reactivate
               </Button>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Customers"
+          value={stats?.total_customers}
+          loading={statsLoading}
+          icon={<Users className="h-4 w-4" />}
+          trend={
+            stats
+              ? {
+                  current: stats.customers_this_month,
+                  previous: stats.customers_last_month,
+                }
+              : undefined
+          }
+        />
+        <StatCard
+          label="Total Stamps"
+          value={stats?.total_stamps}
+          loading={statsLoading}
+          icon={<CircleDot className="h-4 w-4" />}
+          trend={
+            stats
+              ? {
+                  current: stats.stamps_this_month,
+                  previous: stats.stamps_last_month,
+                }
+              : undefined
+          }
+        />
+        <StatCard
+          label="Total Rewards"
+          value={stats?.total_rewards}
+          loading={statsLoading}
+          icon={<Gift className="h-4 w-4" />}
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Active Design
+                </p>
+                {statsLoading ? (
+                  <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" />
+                ) : stats?.active_design ? (
+                  <div>
+                    <p className="text-sm font-bold">
+                      {stats.active_design.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.active_design.organization_name}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No active design
+                  </p>
+                )}
+              </div>
+              <Badge
+                className="bg-secondary text-secondary-foreground"
+                variant="secondary"
+              >
+                <Palette className="h-4 w-4" />
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -304,7 +442,9 @@ export default function BusinessDetailPage() {
             )}
             <InfoRow
               label="Slug"
-              value={<span className="font-mono">/{business.url_slug}</span>}
+              value={
+                <span className="font-mono">/{business.url_slug}</span>
+              }
             />
             {business.settings?.category && (
               <InfoRow label="Category" value={business.settings.category} />
@@ -323,101 +463,162 @@ export default function BusinessDetailPage() {
             />
             {business.settings?.description && (
               <div className="col-span-2">
-                <InfoRow label="Description" value={business.settings.description} />
+                <InfoRow
+                  label="Description"
+                  value={business.settings.description}
+                />
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* QR / Link card */}
+        {/* Certificate card */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Signup Link & QR Code</CardTitle>
-              {/* Toggle */}
-              <div className="flex rounded-lg border p-0.5 text-xs">
-                <button
-                  onClick={() => setShowQR(false)}
-                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                    !showQR
-                      ? "bg-background shadow-sm font-semibold"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  Link
-                </button>
-                <button
-                  onClick={() => setShowQR(true)}
-                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                    showQR
-                      ? "bg-background shadow-sm font-semibold"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  QR Code
-                </button>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheck className="h-4 w-4" />
+              Certificate
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {!showQR ? (
+            {statsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : stats?.certificate ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-                  <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm flex-1 truncate font-mono">{signupUrl}</span>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-0.5">
+                    Identifier
+                  </div>
+                  <div className="font-mono text-sm font-medium">
+                    {stats.certificate.identifier}
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <><Check className="mr-1.5 h-3.5 w-3.5" /> Copied</>
-                  ) : (
-                    <><Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Link</>
-                  )}
-                </Button>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-0.5">
+                    Status
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={
+                      stats.certificate.status === "assigned"
+                        ? "bg-blue-100 text-blue-700 border-blue-200"
+                        : stats.certificate.status === "revoked"
+                          ? "bg-red-100 text-red-700 border-red-200"
+                          : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                    }
+                  >
+                    {stats.certificate.status}
+                  </Badge>
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-[180px] h-[180px] rounded-xl border bg-white flex items-center justify-center overflow-hidden">
-                  {qrLoading ? (
-                    <div className="w-[140px] h-[140px] rounded-lg bg-muted animate-pulse" />
-                  ) : qrCode ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={qrCode} alt="QR Code" className="w-[150px] h-[150px]" />
-                  ) : (
-                    <div className="text-xs text-muted-foreground text-center px-4">
-                      QR code unavailable
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 w-full">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    disabled={!qrCode}
-                    onClick={handleDownloadPng}
-                  >
-                    <Download className="mr-1.5 h-3.5 w-3.5" /> PNG
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    disabled={!qrCode}
-                    onClick={handleDownloadPdf}
-                  >
-                    <FileText className="mr-1.5 h-3.5 w-3.5" /> PDF
-                  </Button>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground py-4">
+                No certificate assigned to this business.
+              </p>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* QR / Link card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Signup Link & QR Code</CardTitle>
+            <div className="flex rounded-lg border p-0.5 text-xs">
+              <button
+                onClick={() => setShowQR(false)}
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                  !showQR
+                    ? "bg-background shadow-sm font-semibold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Link
+              </button>
+              <button
+                onClick={() => setShowQR(true)}
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                  showQR
+                    ? "bg-background shadow-sm font-semibold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                QR Code
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!showQR ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+                <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm flex-1 truncate font-mono">
+                  {signupUrl}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={handleCopy}
+              >
+                {copied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Link
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-[180px] h-[180px] rounded-xl border bg-white flex items-center justify-center overflow-hidden">
+                {qrLoading ? (
+                  <div className="w-[140px] h-[140px] rounded-lg bg-muted animate-pulse" />
+                ) : qrCode ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={qrCode}
+                    alt="QR Code"
+                    className="w-[150px] h-[150px]"
+                  />
+                ) : (
+                  <div className="text-xs text-muted-foreground text-center px-4">
+                    QR code unavailable
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  disabled={!qrCode}
+                  onClick={handleDownloadPng}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" /> PNG
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  disabled={!qrCode}
+                  onClick={handleDownloadPdf}
+                >
+                  <FileText className="mr-1.5 h-3.5 w-3.5" /> PDF
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

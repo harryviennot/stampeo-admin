@@ -70,6 +70,63 @@ export interface Business {
   updated_at: string;
 }
 
+export interface GlobalStats {
+  total_businesses: number;
+  active_businesses: number;
+  pending_businesses: number;
+  suspended_businesses: number;
+  total_customers: number;
+  customers_this_month: number;
+  customers_last_month: number;
+  total_stamps: number;
+  stamps_this_month: number;
+  stamps_last_month: number;
+  total_rewards_redeemed: number;
+  certs_available: number;
+  certs_assigned: number;
+}
+
+export interface BusinessStats {
+  total_customers: number;
+  customers_this_month: number;
+  customers_last_month: number;
+  total_stamps: number;
+  stamps_this_month: number;
+  stamps_last_month: number;
+  total_rewards: number;
+  active_design: {
+    id: string;
+    name: string;
+    organization_name: string;
+    background_color: string;
+    foreground_color: string;
+  } | null;
+  certificate: {
+    id: string;
+    identifier: string;
+    status: string;
+  } | null;
+}
+
+export async function fetchGlobalStats(): Promise<GlobalStats> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/stats`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchBusinessStats(
+  businessId: string
+): Promise<BusinessStats> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/stats`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function fetchPoolStats(): Promise<PoolStats> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/pass-type-ids/pool`, { headers });
