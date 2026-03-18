@@ -50,6 +50,17 @@ import {
 const SHOWCASE_URL =
   process.env.NEXT_PUBLIC_SHOWCASE_URL || "https://stampeo.app";
 
+const HEARD_FROM_LABELS: Record<string, string> = {
+  google: "Google / Search",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  article: "Article / Blog",
+  friend: "Friend / Colleague",
+  business: "A Stampeo business",
+  other: "Other",
+};
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
@@ -464,6 +475,34 @@ export default function BusinessDetailPage() {
                   : "—"
               }
             />
+            {business.website && (
+              <InfoRow
+                label="Website"
+                value={
+                  <a
+                    href={business.website.startsWith("http") ? business.website : `https://${business.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {business.website}
+                  </a>
+                }
+              />
+            )}
+            {business.phone && (
+              <InfoRow label="Phone" value={business.phone} />
+            )}
+            {business.heard_from && (
+              <InfoRow
+                label="Heard From"
+                value={
+                  business.heard_from === "other" && business.heard_from_other
+                    ? `Other: ${business.heard_from_other}`
+                    : HEARD_FROM_LABELS[business.heard_from] || business.heard_from
+                }
+              />
+            )}
             {business.settings?.description && (
               <div className="col-span-2">
                 <InfoRow

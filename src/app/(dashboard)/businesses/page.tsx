@@ -31,12 +31,37 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   fetchBusinesses,
+  fetchHeardFromStats,
   activateBusiness,
   suspendBusiness,
   type Business,
+  type HeardFromStat,
 } from "@/lib/api";
 import { BusinessInitials, PlanBadge, StatusBadge } from "@/components/business-utils";
 import { Loader2, Search } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+const HEARD_FROM_LABELS: Record<string, string> = {
+  google: "Google / Search",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  article: "Article / Blog",
+  friend: "Friend / Colleague",
+  business: "A Stampeo business",
+  other: "Other",
+};
+
+const HEARD_FROM_COLORS: Record<string, string> = {
+  google: "#4285F4",
+  instagram: "#E1306C",
+  tiktok: "#010101",
+  linkedin: "#0A66C2",
+  article: "#F59E0B",
+  friend: "#10B981",
+  business: "#8B5CF6",
+  other: "#6B7280",
+};
 
 type StatusFilter = "all" | "pending" | "active" | "suspended";
 type TierFilter = "all" | "pay" | "pro";
@@ -54,6 +79,7 @@ function BusinessesContent() {
   const initialStatus = (searchParams.get("status") as StatusFilter) || "all";
 
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [heardFromStats, setHeardFromStats] = useState<HeardFromStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -62,8 +88,12 @@ function BusinessesContent() {
 
   const loadData = useCallback(async () => {
     try {
-      const data = await fetchBusinesses();
+      const [data, stats] = await Promise.all([
+        fetchBusinesses(),
+        fetchHeardFromStats(),
+      ]);
       setBusinesses(data);
+      setHeardFromStats(stats);
     } catch (err) {
       toast.error("Failed to load businesses", {
         description: err instanceof Error ? err.message : "Unknown error",
@@ -212,6 +242,45 @@ function BusinessesContent() {
           ))}
         </div>
       </div>
+
+      {/* Heard From Pie Chart */}
+      {heardFromStats.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="text-sm font-semibold mb-4">Where are businesses hearing about us?</h3>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={heardFromStats.map((s) => ({
+                      name: HEARD_FROM_LABELS[s.source] || s.source,
+                      value: s.count,
+                      source: s.source,
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {heardFromStats.map((s) => (
+                      <Cell
+                        key={s.source}
+                        fill={HEARD_FROM_COLORS[s.source] || "#6B7280"}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => [`${value}`, "Businesses"]}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       <Card>

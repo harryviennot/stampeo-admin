@@ -69,6 +69,16 @@ export interface Business {
   activated_at: string | null;
   created_at: string;
   updated_at: string;
+  // Onboarding discovery fields (admin-only)
+  website?: string | null;
+  phone?: string | null;
+  heard_from?: string | null;
+  heard_from_other?: string | null;
+}
+
+export interface HeardFromStat {
+  source: string;
+  count: number;
 }
 
 export interface GlobalStats {
@@ -145,6 +155,13 @@ export async function uploadCertificate(
     headers,
     body: formData,
   });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchHeardFromStats(): Promise<HeardFromStat[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/heard-from-stats`, { headers });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
