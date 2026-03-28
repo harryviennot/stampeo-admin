@@ -47,6 +47,7 @@ import {
   fetchBusinessMembers,
   activateBusiness,
   suspendBusiness,
+  deleteBusiness,
   type Business,
   type BusinessStats,
   type BusinessMember,
@@ -246,6 +247,21 @@ export default function BusinessDetailPage() {
     }
   };
 
+  const handleDeny = async () => {
+    if (!business) return;
+    setActing(true);
+    try {
+      await deleteBusiness(business.id);
+      toast.success("Application denied and business deleted");
+      router.push("/businesses");
+    } catch (err) {
+      toast.error("Failed to deny application", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+      setActing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -363,17 +379,17 @@ export default function BusinessDetailPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Deny application?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will suspend &quot;{business.name}&quot;. The owner
-                        will not be able to use the platform.
+                        This will permanently delete &quot;{business.name}&quot;
+                        and all associated data. This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-red-600 hover:bg-red-700"
-                        onClick={handleSuspend}
+                        onClick={handleDeny}
                       >
-                        Deny
+                        Deny &amp; Delete
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

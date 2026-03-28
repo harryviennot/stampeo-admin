@@ -34,6 +34,7 @@ import {
   fetchHeardFromStats,
   activateBusiness,
   suspendBusiness,
+  deleteBusiness,
   type Business,
   type HeardFromStat,
 } from "@/lib/api";
@@ -130,6 +131,21 @@ function BusinessesContent() {
       await loadData();
     } catch (err) {
       toast.error("Failed to suspend", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const handleDeny = async (id: string) => {
+    setActing(id);
+    try {
+      await deleteBusiness(id);
+      toast.success("Application denied and business deleted");
+      await loadData();
+    } catch (err) {
+      toast.error("Failed to deny application", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
     } finally {
@@ -432,17 +448,18 @@ function BusinessesContent() {
                                   Deny application?
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This will suspend &quot;{biz.name}&quot;. The
-                                  owner will not be able to use the platform.
+                                  This will permanently delete &quot;{biz.name}
+                                  &quot; and all associated data. This action
+                                  cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   className="bg-red-600 hover:bg-red-700"
-                                  onClick={() => handleSuspend(biz.id)}
+                                  onClick={() => handleDeny(biz.id)}
                                 >
-                                  Deny
+                                  Deny &amp; Delete
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>

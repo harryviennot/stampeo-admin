@@ -260,6 +260,15 @@ export async function suspendBusiness(id: string): Promise<Business> {
   return res.json();
 }
 
+export async function deleteBusiness(id: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 export async function revokePassTypeId(
   id: string
 ): Promise<{ id: string; identifier: string; status: string }> {
