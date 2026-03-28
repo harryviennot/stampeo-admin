@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -33,17 +34,28 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   fetchBusinesses,
   fetchBusinessStats,
+  fetchBusinessMembers,
   activateBusiness,
   suspendBusiness,
   type Business,
   type BusinessStats,
+  type BusinessMember,
 } from "@/lib/api";
 import { StatCard } from "@/components/stat-card";
 import {
   BusinessInitials,
   PlanBadge,
+  ResellerBadge,
   StatusBadge,
 } from "@/components/business-utils";
 
@@ -83,6 +95,8 @@ export default function BusinessDetailPage() {
   const [qrLoading, setQrLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [members, setMembers] = useState<BusinessMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
 
   const loadBusiness = useCallback(async () => {
     try {
@@ -116,10 +130,24 @@ export default function BusinessDetailPage() {
     }
   }, [id]);
 
+  const loadMembers = useCallback(async () => {
+    try {
+      const data = await fetchBusinessMembers(id);
+      setMembers(data);
+    } catch (err) {
+      toast.error("Failed to load team members", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     loadBusiness();
     loadStats();
-  }, [loadBusiness, loadStats]);
+    loadMembers();
+  }, [loadBusiness, loadStats, loadMembers]);
 
   useEffect(() => {
     if (!business) return;
@@ -263,6 +291,7 @@ export default function BusinessDetailPage() {
               </h1>
               <StatusBadge status={business.status} />
               <PlanBadge tier={business.subscription_tier} />
+              {business.owner_is_reseller && <ResellerBadge />}
             </div>
             <div className="font-mono text-sm text-muted-foreground mt-0.5">
               /{business.url_slug}
@@ -563,6 +592,84 @@ export default function BusinessDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Team Members */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Users className="h-4 w-4" />
+            Team Members ({members.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {membersLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : members.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No team members.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Last Active</TableHead>
+                  <TableHead>Scans</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      {member.users ? (
+                        <Link
+                          href={`/users/${member.user_id}`}
+                          className="hover:underline"
+                        >
+                          <div className="font-medium flex items-center gap-1.5">
+                            {member.users.name}
+                            {member.users.is_reseller && <ResellerBadge />}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {member.users.email}
+                          </div>
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">Unknown</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          member.role === "owner"
+                            ? "bg-violet-50 text-violet-700 border-violet-200"
+                            : member.role === "admin"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-gray-50 text-gray-700 border-gray-200"
+                        }
+                      >
+                        {member.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {member.last_active_at
+                        ? new Date(member.last_active_at).toLocaleDateString()
+                        : "Never"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {member.scans_count ?? 0}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* QR / Link card */}
       <Card>

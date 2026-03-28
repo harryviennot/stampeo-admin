@@ -30,6 +30,14 @@ export function PlanBadge({ tier }: { tier: string }) {
   );
 }
 
+export function ResellerBadge() {
+  return (
+    <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+      Reseller
+    </Badge>
+  );
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
     pending: { label: "Pending", className: "bg-amber-50 text-amber-700 border-amber-200" },

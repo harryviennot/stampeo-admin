@@ -37,7 +37,7 @@ import {
   type Business,
   type HeardFromStat,
 } from "@/lib/api";
-import { BusinessInitials, PlanBadge, StatusBadge } from "@/components/business-utils";
+import { BusinessInitials, PlanBadge, ResellerBadge, StatusBadge } from "@/components/business-utils";
 import { Loader2, Search } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -341,7 +341,10 @@ function BusinessesContent() {
                     <TableCell>
                       <div className="text-sm">
                         {biz.owner_name && (
-                          <div className="font-medium">{biz.owner_name}</div>
+                          <div className="flex items-center gap-1.5 font-medium">
+                            {biz.owner_name}
+                            {biz.owner_is_reseller && <ResellerBadge />}
+                          </div>
                         )}
                         {biz.owner_email && (
                           <div className="text-xs text-muted-foreground">
