@@ -64,8 +64,10 @@ export interface Business {
     backgroundColor?: string;
     [key: string]: unknown;
   };
+  owner_id: string | null;
   owner_name: string | null;
   owner_email: string | null;
+  owner_is_reseller: boolean;
   activated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -79,6 +81,71 @@ export interface Business {
 export interface HeardFromStat {
   source: string;
   count: number;
+}
+
+export interface UserMembership {
+  user_id: string;
+  business_id: string;
+  role: string;
+  businesses: {
+    id: string;
+    name: string;
+    url_slug: string;
+    status: string;
+    logo_url: string | null;
+  } | null;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  locale: string;
+  is_reseller: boolean;
+  reseller_granted_at: string | null;
+  created_at: string;
+  updated_at: string;
+  memberships: UserMembership[];
+  businesses_count: number;
+  roles: string[];
+}
+
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  locale: string;
+  is_reseller: boolean;
+  reseller_granted_at: string | null;
+  created_at: string;
+  updated_at: string;
+  memberships: Array<{
+    id: string;
+    user_id: string;
+    business_id: string;
+    role: string;
+    created_at: string;
+    businesses: Business | null;
+  }>;
+}
+
+export interface BusinessMember {
+  id: string;
+  user_id: string;
+  business_id: string;
+  role: string;
+  created_at: string;
+  last_active_at: string | null;
+  scans_count: number | null;
+  users: {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url: string | null;
+    is_reseller: boolean;
+  } | null;
 }
 
 export interface GlobalStats {
@@ -193,6 +260,15 @@ export async function suspendBusiness(id: string): Promise<Business> {
   return res.json();
 }
 
+export async function deleteBusiness(id: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 export async function revokePassTypeId(
   id: string
 ): Promise<{ id: string; identifier: string; status: string }> {
@@ -203,4 +279,52 @@ export async function revokePassTypeId(
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+export async function fetchUsers(): Promise<AdminUser[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/users`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchUserDetail(
+  userId: string
+): Promise<AdminUserDetail> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchBusinessMembers(
+  businessId: string
+): Promise<BusinessMember[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/members`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function grantReseller(userId: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/users/${userId}/grant-reseller`,
+    { method: "POST", headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export async function revokeReseller(userId: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/users/${userId}/revoke-reseller`,
+    { method: "POST", headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
 }
