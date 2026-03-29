@@ -368,7 +368,7 @@ export default function UserDetailPage() {
                           </label>
                           {applyToExisting ? (
                             <p className="text-xs text-amber-600">
-                              All active subscriptions will switch to the new {newDiscountPercent}% rate next billing cycle.
+                              All active subscriptions and their billing page prices will switch to {newDiscountPercent}%. Stripe coupons are swapped — the new rate applies from the next billing cycle.
                             </p>
                           ) : (
                             <p className="text-xs text-muted-foreground">
