@@ -14,6 +14,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -37,6 +39,7 @@ import {
   fetchUserDetail,
   grantReseller,
   revokeReseller,
+  updateResellerDiscount,
   type AdminUserDetail,
 } from "@/lib/api";
 import {
@@ -75,6 +78,10 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [resellerActing, setResellerActing] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(25);
+  const [newDiscountPercent, setNewDiscountPercent] = useState(25);
+  const [applyToExisting, setApplyToExisting] = useState(false);
+  const [removeDiscounts, setRemoveDiscounts] = useState(false);
 
   const loadUser = useCallback(async () => {
     try {
@@ -96,10 +103,14 @@ export default function UserDetailPage() {
 
   const handleGrantReseller = async () => {
     if (!user) return;
+    if (discountPercent < 1 || discountPercent > 50) {
+      toast.error("Discount must be between 1% and 50%");
+      return;
+    }
     setResellerActing(true);
     try {
-      await grantReseller(user.id);
-      toast.success("Reseller status granted");
+      await grantReseller(user.id, discountPercent);
+      toast.success(`Reseller status granted with ${discountPercent}% discount`);
       await loadUser();
     } catch (err) {
       toast.error("Failed to grant reseller status", {
@@ -114,11 +125,41 @@ export default function UserDetailPage() {
     if (!user) return;
     setResellerActing(true);
     try {
-      await revokeReseller(user.id);
-      toast.success("Reseller status revoked");
+      await revokeReseller(user.id, removeDiscounts);
+      toast.success(
+        removeDiscounts
+          ? "Reseller status revoked and discounts removed"
+          : "Reseller status revoked (existing discounts kept)"
+      );
+      setRemoveDiscounts(false);
       await loadUser();
     } catch (err) {
       toast.error("Failed to revoke reseller status", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setResellerActing(false);
+    }
+  };
+
+  const handleUpdateDiscount = async () => {
+    if (!user) return;
+    if (newDiscountPercent < 1 || newDiscountPercent > 50) {
+      toast.error("Discount must be between 1% and 50%");
+      return;
+    }
+    setResellerActing(true);
+    try {
+      await updateResellerDiscount(user.id, newDiscountPercent, applyToExisting);
+      toast.success(
+        applyToExisting
+          ? `Discount updated to ${newDiscountPercent}% (applied to existing subscriptions)`
+          : `Discount updated to ${newDiscountPercent}% (new subscriptions only)`
+      );
+      setApplyToExisting(false);
+      await loadUser();
+    } catch (err) {
+      toast.error("Failed to update reseller discount", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
     } finally {
@@ -204,7 +245,7 @@ export default function UserDetailPage() {
               <div>
                 <div className="text-sm font-medium">
                   {user.is_reseller
-                    ? "Active — 30% discount on all tiers"
+                    ? `Active — ${user.reseller_discount_percent ?? "?"}% discount on all tiers`
                     : "Not a reseller"}
                 </div>
                 {user.is_reseller && user.reseller_granted_at && (
@@ -215,6 +256,7 @@ export default function UserDetailPage() {
                 )}
               </div>
               {user.is_reseller ? (
+                <div className="flex gap-2">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -234,11 +276,35 @@ export default function UserDetailPage() {
                       <AlertDialogTitle>
                         Revoke reseller status?
                       </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will remove reseller status from {user.name},
-                        removing the 30% discount from all{" "}
-                        {user.memberships.length} business
-                        {user.memberships.length !== 1 && "es"} they belong to.
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3">
+                          <p>
+                            This will remove reseller status from {user.name}.
+                            New businesses they create will no longer receive a discount.
+                          </p>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={removeDiscounts}
+                              onChange={(e) => setRemoveDiscounts(e.target.checked)}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">
+                              Also remove discounts from existing subscriptions
+                            </span>
+                          </label>
+                          {removeDiscounts && (
+                            <p className="text-xs text-red-600">
+                              All {user.memberships.filter((m) => m.role === "owner").length} business(es)
+                              owned by this user will pay full price starting next billing cycle.
+                            </p>
+                          )}
+                          {!removeDiscounts && (
+                            <p className="text-xs text-muted-foreground">
+                              Existing subscriptions will keep their current {user.reseller_discount_percent}% discount.
+                            </p>
+                          )}
+                        </div>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -252,6 +318,78 @@ export default function UserDetailPage() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+
+                <AlertDialog onOpenChange={(open) => {
+                  if (open) setNewDiscountPercent(user.reseller_discount_percent ?? 25);
+                }}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={resellerActing}
+                    >
+                      Change discount
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Change reseller discount</AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3">
+                          <p>
+                            Current discount: <strong>{user.reseller_discount_percent ?? "?"}%</strong>.
+                            Choose a new rate for {user.name}.
+                          </p>
+                          <div>
+                            <Label htmlFor="new-discount-input" className="text-sm font-medium">
+                              New discount (1–50%)
+                            </Label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Input
+                                id="new-discount-input"
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={newDiscountPercent}
+                                onChange={(e) => setNewDiscountPercent(Number(e.target.value))}
+                                className="w-24"
+                              />
+                              <span className="text-sm text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={applyToExisting}
+                              onChange={(e) => setApplyToExisting(e.target.checked)}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">Apply to existing subscriptions</span>
+                          </label>
+                          {applyToExisting ? (
+                            <p className="text-xs text-amber-600">
+                              All active subscriptions will switch to the new {newDiscountPercent}% rate next billing cycle.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Only new subscriptions will use {newDiscountPercent}%. Existing ones keep {user.reseller_discount_percent ?? "?"}%.
+                            </p>
+                          )}
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleUpdateDiscount}
+                        disabled={newDiscountPercent < 1 || newDiscountPercent > 50 || newDiscountPercent === (user.reseller_discount_percent ?? -1)}
+                      >
+                        Update to {newDiscountPercent}%
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                </div>
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -270,12 +408,36 @@ export default function UserDetailPage() {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
-                        Grant reseller status?
+                        Grant reseller status
                       </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will grant reseller status to {user.name}, applying
-                        a 30% discount across all tiers for all businesses they
-                        own.
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3">
+                          <p>
+                            Choose a discount percentage for {user.name}.
+                            A unique Stripe coupon will be created automatically.
+                          </p>
+                          <div>
+                            <Label htmlFor="discount-input" className="text-sm font-medium">
+                              Discount (1–50%)
+                            </Label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Input
+                                id="discount-input"
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={discountPercent}
+                                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                                className="w-24"
+                              />
+                              <span className="text-sm text-muted-foreground">%</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            This discount will apply to all new business subscriptions
+                            created by this user. Existing businesses are not affected.
+                          </p>
+                        </div>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -283,8 +445,9 @@ export default function UserDetailPage() {
                       <AlertDialogAction
                         className="bg-indigo-600 hover:bg-indigo-700"
                         onClick={handleGrantReseller}
+                        disabled={discountPercent < 1 || discountPercent > 50}
                       >
-                        Grant
+                        Grant with {discountPercent}% discount
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
