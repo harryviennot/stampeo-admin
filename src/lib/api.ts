@@ -119,6 +119,7 @@ export interface AdminUserDetail {
   locale: string;
   is_reseller: boolean;
   reseller_granted_at: string | null;
+  reseller_discount_percent: number | null;
   created_at: string;
   updated_at: string;
   memberships: Array<{
@@ -311,20 +312,48 @@ export async function fetchBusinessMembers(
   return res.json();
 }
 
-export async function grantReseller(userId: string): Promise<void> {
+export async function grantReseller(userId: string, discountPercent: number): Promise<void> {
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${API_BASE_URL}/admin/users/${userId}/grant-reseller`,
-    { method: "POST", headers }
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ discount_percent: discountPercent }),
+    }
   );
   if (!res.ok) throw new Error(await res.text());
 }
 
-export async function revokeReseller(userId: string): Promise<void> {
+export async function updateResellerDiscount(
+  userId: string,
+  discountPercent: number,
+  applyToExisting: boolean
+): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/users/${userId}/update-reseller-discount`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        discount_percent: discountPercent,
+        apply_to_existing: applyToExisting,
+      }),
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export async function revokeReseller(userId: string, removeExistingDiscounts: boolean): Promise<void> {
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${API_BASE_URL}/admin/users/${userId}/revoke-reseller`,
-    { method: "POST", headers }
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ remove_existing_discounts: removeExistingDiscounts }),
+    }
   );
   if (!res.ok) throw new Error(await res.text());
 }
