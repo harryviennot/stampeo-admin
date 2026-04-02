@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/", label: "Dashboard" },
-  { href: "/certificates", label: "Certificates" },
   { href: "/businesses", label: "Businesses" },
+  { href: "/users", label: "Users" },
+  { href: "/certificates", label: "Certificates" },
 ];
 
 export default function DashboardLayout({
@@ -45,9 +46,13 @@ export default function DashboardLayout({
                   href={link.href}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    pathname === link.href
-                      ? "bg-accent/10 text-accent"
-                      : "text-muted-foreground hover:text-foreground"
+                    link.href === "/"
+                      ? pathname === "/"
+                        ? "bg-accent/10 text-accent"
+                        : "text-muted-foreground hover:text-foreground"
+                      : pathname.startsWith(link.href)
+                        ? "bg-accent/10 text-accent"
+                        : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {link.label}
