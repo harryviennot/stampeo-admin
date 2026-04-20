@@ -51,3 +51,32 @@ export function StatusBadge({ status }: { status: string }) {
     </Badge>
   );
 }
+
+export function BillingStatusBadge({ status }: { status: string | null | undefined }) {
+  if (!status) return null;
+  const map: Record<string, { label: string; className: string }> = {
+    trial: { label: "Trial", className: "bg-sky-50 text-sky-700 border-sky-200" },
+    active: { label: "Active", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    grace: { label: "Grace", className: "bg-amber-50 text-amber-700 border-amber-200" },
+    past_due: { label: "Past due", className: "bg-orange-50 text-orange-700 border-orange-200" },
+    suspended: { label: "Suspended", className: "bg-red-50 text-red-700 border-red-200" },
+    cancelled: { label: "Cancelled", className: "bg-zinc-100 text-zinc-700 border-zinc-200" },
+  };
+  const { label, className } = map[status] ?? { label: status, className: "" };
+  return (
+    <Badge variant="outline" className={className}>
+      {label}
+    </Badge>
+  );
+}
+
+export function FoundingPartnerBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="bg-violet-50 text-violet-700 border-violet-200"
+    >
+      Founding partner
+    </Badge>
+  );
+}
