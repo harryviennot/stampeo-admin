@@ -44,6 +44,17 @@ export function StampHeatmapCard() {
     <ChartCard
       title="Stamp activity heatmap"
       subtitle={`Last 30 days · ${totalStamps.toLocaleString()} stamps`}
+      info={
+        <>
+          <p className="font-medium text-foreground">When are scanners most active?</p>
+          <p className="mt-1 text-muted-foreground">
+            Each cell is one hour × one day-of-week across the last 30 days of{" "}
+            <span className="font-medium">stamp_added</span> transactions (UTC).
+            Darker blue = more scans. Reveals the platform&apos;s operational pulse —
+            useful for timing broadcasts, maintenance windows, and support staffing.
+          </p>
+        </>
+      }
       headerRight={
         peak ? (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">

@@ -13,6 +13,19 @@ export function TopBusinessesDensityCard() {
     <ChartCard
       title="Density leaderboard · 7d"
       subtitle="Stamps per customer · rolling 7 days"
+      info={
+        <>
+          <p className="font-medium text-foreground">Which businesses have the most engaged customers?</p>
+          <p className="mt-1 text-muted-foreground">
+            <span className="font-medium">Density</span> = stamps in the last 7
+            days ÷ total lifetime customers. Complements the absolute-count
+            leaderboard by surfacing small, high-engagement accounts that would
+            otherwise be buried. Businesses with zero customers are excluded to
+            avoid division by zero.{" "}
+            <span className="font-medium">Higher is better.</span>
+          </p>
+        </>
+      }
       headerRight={
         <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
           <TrendingUp className="h-3 w-3" />

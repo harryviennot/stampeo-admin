@@ -56,6 +56,20 @@ export function BroadcastDeliverabilityChart() {
     <ChartCard
       title="Broadcast deliverability"
       subtitle={`Last 12 weeks · ${totals.total.toLocaleString()} recipients queued`}
+      info={
+        <>
+          <p className="font-medium text-foreground">Where broadcast pushes land</p>
+          <p className="mt-1 text-muted-foreground">
+            Per-recipient counters from <span className="font-medium">promotional_messages</span>{" "}
+            (status = <span className="font-medium">&apos;sent&apos;</span>). Stacks:{" "}
+            <span className="font-medium">Apple/Google ok</span> = delivered,{" "}
+            <span className="font-medium">No app</span> = Google pass uninstalled,{" "}
+            <span className="font-medium">No push</span> = customer never registered a device.
+            Headline rate = (apple_ok + google_ok) ÷ reachable.{" "}
+            <span className="font-medium">Higher is better.</span>
+          </p>
+        </>
+      }
       headerRight={
         deliveryRate !== null ? (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">

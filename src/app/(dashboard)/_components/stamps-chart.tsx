@@ -79,6 +79,19 @@ export function StampsChart() {
     <ChartCard
       title="Stamps & redemptions"
       subtitle="Last 12 weeks · with 4-week rolling average"
+      info={
+        <>
+          <p className="font-medium text-foreground">Platform-wide stamp activity</p>
+          <p className="mt-1 text-muted-foreground">
+            <span className="font-medium">Stamps</span>: rows in{" "}
+            <span className="font-medium">transactions</span> with{" "}
+            type = <span className="font-medium">&apos;stamp_added&apos;</span>.{" "}
+            <span className="font-medium">Redemptions</span>:{" "}
+            type = <span className="font-medium">&apos;redeem&apos;</span>. Redemption
+            rate = redemptions / stamps. The 4-week line smooths short-term noise.
+          </p>
+        </>
+      }
       legend={
         <div className="flex items-center gap-3">
           <LegendItem color="var(--chart-3)" label="Stamps" />

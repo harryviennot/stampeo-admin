@@ -42,6 +42,22 @@ export function ActivationFunnelChart() {
     <ChartCard
       title="Post-signup activation funnel"
       subtitle="Last 90 days · business activation stages"
+      info={
+        <>
+          <p className="font-medium text-foreground">Do new businesses actually use the product?</p>
+          <p className="mt-1 text-muted-foreground">
+            For businesses created in the last 90 days:{" "}
+            <span className="font-medium">1.</span> account exists →{" "}
+            <span className="font-medium">2.</span> a{" "}
+            <span className="font-medium">card_design</span> is active →{" "}
+            <span className="font-medium">3.</span> at least one{" "}
+            <span className="font-medium">customer</span> enrolled →{" "}
+            <span className="font-medium">4.</span> at least one{" "}
+            <span className="font-medium">stamp_added</span> transaction. Last
+            stage ÷ first = activation rate. A red bar means that stage drops ≥40%.
+          </p>
+        </>
+      }
       headerRight={
         activationRate !== null ? (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">

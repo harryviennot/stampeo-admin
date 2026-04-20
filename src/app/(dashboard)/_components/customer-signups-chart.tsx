@@ -108,6 +108,16 @@ export function CustomerSignupsChart() {
       subtitle={`Last 12 weeks · ${totalRange.toLocaleString()} total${
         totalRange > 0 ? ` · top ${TOP_N} drive ${topShare}%` : ""
       }`}
+      info={
+        <>
+          <p className="font-medium text-foreground">New customers per week, stacked by business</p>
+          <p className="mt-1 text-muted-foreground">
+            Counts rows in the <span className="font-medium">customers</span> table by
+            week. Top {TOP_N} businesses get their own color; the rest are grouped into
+            &quot;Other&quot;. Shows which businesses are driving the customer-acquisition mix.
+          </p>
+        </>
+      }
       headerRight={
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold tabular-nums">{last}</span>

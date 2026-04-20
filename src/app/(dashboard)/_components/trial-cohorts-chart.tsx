@@ -36,6 +36,20 @@ export function TrialCohortsChart() {
     <ChartCard
       title="Trial → active cohort conversion"
       subtitle="Weekly signup cohorts · W+1 / W+2 / W+4 / W+8"
+      info={
+        <>
+          <p className="font-medium text-foreground">How fast trial businesses convert to paid</p>
+          <p className="mt-1 text-muted-foreground">
+            Each row is a signup cohort (one week of new businesses). Columns show
+            the % that flipped{" "}
+            <span className="font-medium">billing_status</span> to{" "}
+            <span className="font-medium">&apos;active&apos;</span> within 1, 2, 4, and 8
+            weeks. Greener = faster conversion. Compare rows to spot if recent
+            cohorts convert slower than older ones.{" "}
+            <span className="font-medium">Higher is better.</span>
+          </p>
+        </>
+      }
       headerRight={
         overall !== null ? (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">

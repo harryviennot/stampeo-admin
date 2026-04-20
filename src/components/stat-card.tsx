@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { InfoTooltip } from "@/components/info-tooltip";
 
 interface StatCardProps {
   label: string;
@@ -9,6 +10,7 @@ interface StatCardProps {
   icon: React.ReactNode;
   badgeClass?: string;
   trend?: { current: number; previous: number };
+  info?: React.ReactNode;
 }
 
 export function StatCard({
@@ -18,6 +20,7 @@ export function StatCard({
   icon,
   badgeClass,
   trend,
+  info,
 }: StatCardProps) {
   const trendPct =
     trend && trend.previous > 0
@@ -30,7 +33,10 @@ export function StatCard({
       <CardContent className="pt-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-muted-foreground">{label}</p>
+              {info && <InfoTooltip content={info} />}
+            </div>
             <p className="text-2xl font-bold">
               {loading ? (
                 <span className="inline-block h-7 w-10 animate-pulse rounded bg-muted" />

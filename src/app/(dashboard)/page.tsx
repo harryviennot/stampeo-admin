@@ -107,13 +107,18 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Platform overview</p>
       </div>
 
-      {/* Stat Cards */}
+      {/* ── Platform totals ── */}
+      <SectionHeader
+        title="Platform totals"
+        description="Lifetime counts across every business on the platform, with month-over-month trends on customer and stamp volume."
+      />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Total Businesses"
           value={stats?.total_businesses}
           loading={statsPending}
           icon={<Building2 className="h-4 w-4" />}
+          info="Every business row regardless of status (active, pending, suspended). Lifetime count — doesn't include businesses that were hard-deleted."
         />
         <StatCard
           label="Total Customers"
@@ -128,6 +133,7 @@ export default function DashboardPage() {
                 }
               : undefined
           }
+          info="Every customer ever enrolled across all businesses. The percentage compares customers created this calendar month vs last month."
         />
         <StatCard
           label="Total Stamps"
@@ -142,6 +148,7 @@ export default function DashboardPage() {
                 }
               : undefined
           }
+          info="Every stamp_added transaction ever recorded. Trend compares this month vs last month — the primary gauge of platform usage."
         />
         <StatCard
           label="Pending Applications"
@@ -153,6 +160,7 @@ export default function DashboardPage() {
               ? "bg-amber-100 text-amber-700"
               : undefined
           }
+          info="Businesses with status = 'pending' awaiting approval. Since the open-funnel rollout this should usually be 0 — a non-zero value means a business was explicitly held for review."
         />
         <StatCard
           label="Certificates Available"
@@ -160,12 +168,14 @@ export default function DashboardPage() {
           loading={statsPending}
           icon={<ShieldCheck className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
+          info="Unassigned Apple Pass Type IDs in the pool. Each new business design consumes one. If this hits 0, new signups can't issue wallet passes."
         />
         <StatCard
           label="Total Rewards"
           value={stats?.total_rewards_redeemed}
           loading={statsPending}
           icon={<Gift className="h-4 w-4" />}
+          info="Rows in transactions with type = 'redeem'. Counts lifetime reward redemptions — complements total stamps by showing how many loyalty loops actually closed."
         />
         <StatCard
           label={`Zombie Customers${zombieSuffix}`}
@@ -177,6 +187,18 @@ export default function DashboardPage() {
               ? "bg-red-100 text-red-700"
               : "bg-amber-100 text-amber-700"
           }
+          info={
+            <>
+              <p className="font-medium text-foreground">Customers who enrolled but never scanned</p>
+              <p className="mt-1 text-muted-foreground">
+                Zero <span className="font-medium">stamp_added</span>{" "}
+                transactions ever. Percentage = zombies ÷ total customers.
+                Above 30% turns red — a signal that onboarding is leaky
+                (customers install the pass but don&apos;t come back).{" "}
+                <span className="font-medium">Lower is better.</span>
+              </p>
+            </>
+          }
         />
         <StatCard
           label={`Ghost Businesses · 7d+${ghostSuffix}`}
@@ -187,6 +209,19 @@ export default function DashboardPage() {
             ghostPct !== null && ghostPct >= 30
               ? "bg-red-100 text-red-700"
               : "bg-amber-100 text-amber-700"
+          }
+          info={
+            <>
+              <p className="font-medium text-foreground">Businesses that signed up but never scanned</p>
+              <p className="mt-1 text-muted-foreground">
+                Created &gt; 7 days ago with zero{" "}
+                <span className="font-medium">stamp_added</span> transactions
+                ever. Percentage = ghosts ÷ total businesses. Surfaces
+                post-signup activation failures — the ones most likely to churn
+                before paying.{" "}
+                <span className="font-medium">Lower is better.</span>
+              </p>
+            </>
           }
         />
       </div>
@@ -219,44 +254,56 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Stamps + headline strip (full width) */}
+      {/* ── Growth ── */}
+      <SectionHeader
+        title="Growth"
+        description="Weekly inflow of stamps, new businesses, and new customers. The signal you check to answer 'is the platform growing?'."
+      />
       <StampsChart />
-
-      {/* Signups: businesses + customers (stacked by top 19 + other) */}
       <div className="grid gap-4 lg:grid-cols-2">
         <BusinessSignupsChart />
         <CustomerSignupsChart />
       </div>
 
-      {/* Funnels: pre-signup onboarding + post-signup activation */}
+      {/* ── Funnels & activation ── */}
+      <SectionHeader
+        title="Funnels & activation"
+        description="Where prospects and new businesses drop off. Pre-signup shows the onboarding wizard; post-signup tracks whether businesses actually use the product."
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         <OnboardingFunnelChart />
         <ActivationFunnelChart />
       </div>
 
-      {/* Pass lifecycle — full width */}
+      {/* ── Retention & engagement ── */}
+      <SectionHeader
+        title="Retention & engagement"
+        description="Do customers keep their passes installed, and when are they actually scanning? These metrics catch leaks the growth charts miss."
+      />
       <PassLifecycleChart />
-
-      {/* Trial → active cohort conversion — full width */}
-      <TrialCohortsChart />
-
-      {/* Broadcast deliverability — full width */}
-      <BroadcastDeliverabilityChart />
-
-      {/* Stamp heatmap — full width */}
       <StampHeatmapCard />
 
-      {/* Top businesses: rolling + all-time + density */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopBusinessesRollingCard />
-        <TopBusinessesDensityCard />
-      </div>
-      <TopBusinessesAllTimeCard />
-
-      {/* Billing status — its own row */}
+      {/* ── Monetization ── */}
+      <SectionHeader
+        title="Monetization"
+        description="How quickly trial businesses convert to paid, and the current billing mix across the platform."
+      />
+      <TrialCohortsChart />
       <ChartCard
         title="Billing status"
         subtitle="All businesses"
+        info={
+          <>
+            <p className="font-medium text-foreground">Current billing mix</p>
+            <p className="mt-1 text-muted-foreground">
+              Breakdown of every business by{" "}
+              <span className="font-medium">billing_status</span>:{" "}
+              trial, active, grace (payment retry), past_due, suspended,
+              cancelled. &quot;Founding partner&quot; count tracks legacy
+              grandfathered accounts — the program closed on 2026-05-19.
+            </p>
+          </>
+        }
         headerRight={
           billing && billing.founding_partner_count > 0 ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs text-violet-700">
@@ -321,6 +368,39 @@ export default function DashboardPage() {
           </div>
         )}
       </ChartCard>
+
+      {/* ── Communication ── */}
+      <SectionHeader
+        title="Communication"
+        description="How well do broadcast pushes actually reach customers? Failure modes are broken out separately so you can spot platform-specific issues."
+      />
+      <BroadcastDeliverabilityChart />
+
+      {/* ── Leaderboards ── */}
+      <SectionHeader
+        title="Leaderboards"
+        description="Who's driving activity right now, who's most engaged per customer, and who are the all-time heavyweights."
+      />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TopBusinessesRollingCard />
+        <TopBusinessesDensityCard />
+      </div>
+      <TopBusinessesAllTimeCard />
+    </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="border-b pb-2 pt-4">
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }

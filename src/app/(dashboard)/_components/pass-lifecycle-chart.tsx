@@ -42,6 +42,20 @@ export function PassLifecycleChart() {
     <ChartCard
       title="Pass installs & uninstalls"
       subtitle="Last 12 weeks · wallet lifecycle events"
+      info={
+        <>
+          <p className="font-medium text-foreground">Retention signal from Apple & Google Wallet</p>
+          <p className="mt-1 text-muted-foreground">
+            From <span className="font-medium">transactions</span>:{" "}
+            <span className="font-medium">card_added</span>,{" "}
+            <span className="font-medium">card_deleted</span>,{" "}
+            <span className="font-medium">card_re_added</span> events weekly.{" "}
+            <span className="font-medium">Uninstall rate</span> = card_deleted ÷ card_added.
+            Anything above 30% is a churn red flag; 4w shows the recent trend.{" "}
+            <span className="font-medium">Lower is better.</span>
+          </p>
+        </>
+      }
       headerRight={
         <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">Uninstall rate:</span>

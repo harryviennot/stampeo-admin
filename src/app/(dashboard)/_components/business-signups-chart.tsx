@@ -46,6 +46,16 @@ export function BusinessSignupsChart() {
     <ChartCard
       title="Business signups"
       subtitle={`${totalRange} in last 12 weeks`}
+      info={
+        <>
+          <p className="font-medium text-foreground">New businesses created per week</p>
+          <p className="mt-1 text-muted-foreground">
+            Counts <span className="font-medium">businesses.created_at</span> grouped
+            by ISO week over the last 12 weeks. Includes all statuses (active, pending,
+            suspended). WoW compares the latest week vs the previous one.
+          </p>
+        </>
+      }
       headerRight={
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold tabular-nums">{lastWeek}</span>

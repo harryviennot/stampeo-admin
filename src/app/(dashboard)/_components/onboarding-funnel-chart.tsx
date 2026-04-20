@@ -49,6 +49,18 @@ export function OnboardingFunnelChart() {
     <ChartCard
       title="Pre-signup onboarding funnel"
       subtitle="Last 90 days · wizard step completion"
+      info={
+        <>
+          <p className="font-medium text-foreground">Where prospects drop off during signup</p>
+          <p className="mt-1 text-muted-foreground">
+            Reconstructs the 6-step wizard by combining abandoned{" "}
+            <span className="font-medium">onboarding_progress</span> rows (people still
+            mid-flow) with completed signups in <span className="font-medium">businesses</span>{" "}
+            (they reached every step). A bar turns red when ≥30% of the previous step drops.{" "}
+            <span className="font-medium">Shorter = leakier.</span>
+          </p>
+        </>
+      }
       headerRight={
         overallConv !== null ? (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">

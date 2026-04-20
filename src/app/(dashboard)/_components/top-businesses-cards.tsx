@@ -25,6 +25,17 @@ export function TopBusinessesRollingCard() {
     <ChartCard
       title="Top businesses · last 7 days"
       subtitle="Stamps added, rolling 7-day window"
+      info={
+        <>
+          <p className="font-medium text-foreground">Where activity is happening right now</p>
+          <p className="mt-1 text-muted-foreground">
+            Ranks businesses by <span className="font-medium">stamp_added</span>{" "}
+            transactions in the last rolling 7 days (not calendar week). Δ compares
+            vs the prior 7-day window. &quot;Inactive 14d+&quot; flags businesses that
+            were top-ranked but have gone silent for two weeks.
+          </p>
+        </>
+      }
       headerRight={
         <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
           <Clock className="h-3 w-3" />
@@ -80,6 +91,17 @@ export function TopBusinessesAllTimeCard() {
     <ChartCard
       title="Top businesses · all time"
       subtitle="Lifetime stamps added"
+      info={
+        <>
+          <p className="font-medium text-foreground">Who are the platform&apos;s biggest contributors?</p>
+          <p className="mt-1 text-muted-foreground">
+            Cumulative <span className="font-medium">stamp_added</span>{" "}
+            transactions since each business joined. Also shows total enrolled
+            customers. Useful for identifying flagship accounts for case studies,
+            pricing experiments, or support prioritization.
+          </p>
+        </>
+      }
       headerRight={
         <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
           <Trophy className="h-3 w-3" />
