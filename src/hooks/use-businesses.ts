@@ -10,10 +10,13 @@ import {
   activateBusiness,
   deleteBusiness,
   fetchBusinessDetail,
+  fetchBusinessInactiveSnapshot,
   fetchBusinessMembers,
+  fetchBusinessPassLifecycle,
   fetchBusinesses,
   fetchBusinessStats,
   suspendBusiness,
+  type BucketRangeParams,
   type BusinessListParams,
 } from "@/lib/api";
 import { adminKeys } from "@/lib/query-keys";
@@ -38,6 +41,25 @@ export function useBusinessStats(id: string | undefined) {
   return useQuery({
     queryKey: adminKeys.businesses.stats(id ?? ""),
     queryFn: () => fetchBusinessStats(id!),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessPassLifecycle(
+  id: string | undefined,
+  params: BucketRangeParams = {}
+) {
+  return useQuery({
+    queryKey: adminKeys.businesses.passLifecycle(id ?? "", params),
+    queryFn: () => fetchBusinessPassLifecycle(id!, params),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessInactiveSnapshot(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.inactive(id ?? ""),
+    queryFn: () => fetchBusinessInactiveSnapshot(id!),
     enabled: !!id,
   });
 }

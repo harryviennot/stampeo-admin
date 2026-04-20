@@ -156,14 +156,40 @@ export interface TopBusinessRow {
   name: string;
   tier: string;
   billing_status: string;
-  stamps_this_week: number;
-  stamps_last_week: number;
+  stamps_current: number;
+  stamps_prior: number;
   delta_pct: number | null;
   last_activity_at: string | null;
 }
 
 export interface TopBusinessesResponse {
   items: TopBusinessRow[];
+}
+
+export interface TopBusinessAllTimeRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  billing_status: string;
+  stamps_total: number;
+  customers_total: number;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesAllTimeResponse {
+  items: TopBusinessAllTimeRow[];
+}
+
+export interface CustomerSignupsByBusiness {
+  top_businesses: Array<{
+    business_id: string;
+    name: string;
+    total: number;
+  }>;
+  buckets: Array<{
+    period_start: string;
+    values: Record<string, number>;
+  }>;
 }
 
 export interface HeardFromStat {
@@ -418,6 +444,269 @@ export async function fetchTopBusinesses(
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${API_BASE_URL}/admin/stats/top-businesses?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchTopBusinessesAllTime(
+  limit: number = 10
+): Promise<TopBusinessesAllTimeResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses-all-time?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface CustomerSignupsByBizParams {
+  bucket?: "day" | "week";
+  range?: string;
+  top_n?: number;
+}
+
+export async function fetchCustomerSignupsByBusiness(
+  params: CustomerSignupsByBizParams = {}
+): Promise<CustomerSignupsByBusiness> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/customer-signups-by-business${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ─── Stats: new analytics endpoints ─────────────────────────────
+
+export interface RangeParams {
+  range?: string; // e.g. "30d", "90d", "12w"
+}
+
+export interface BucketRangeParams {
+  bucket?: "day" | "week";
+  range?: string;
+}
+
+export interface OnboardingFunnelStep {
+  step: number;
+  reached: number;
+}
+
+export interface OnboardingFunnelResponse {
+  steps: OnboardingFunnelStep[];
+  completed: number;
+  abandoned: number;
+}
+
+export async function fetchOnboardingFunnel(
+  params: RangeParams = {}
+): Promise<OnboardingFunnelResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/onboarding-funnel${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface ActivationFunnelResponse {
+  created: number;
+  has_active_design: number;
+  has_first_customer: number;
+  has_first_stamp: number;
+}
+
+export async function fetchActivationFunnel(
+  params: RangeParams = {}
+): Promise<ActivationFunnelResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/activation-funnel${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface InactiveSnapshotResponse {
+  zombie_customers: number;
+  ghost_businesses_7d: number;
+  ghost_businesses_30d: number;
+  total_customers: number;
+  total_businesses: number;
+}
+
+export async function fetchInactiveSnapshot(): Promise<InactiveSnapshotResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/inactive-snapshot`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface PassLifecycleBucket {
+  period_start: string;
+  card_added: number;
+  card_deleted: number;
+  card_re_added: number;
+}
+
+export interface PassLifecycleResponse {
+  buckets: PassLifecycleBucket[];
+}
+
+export async function fetchPassLifecycle(
+  params: BucketRangeParams = {}
+): Promise<PassLifecycleResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/pass-lifecycle${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchBusinessPassLifecycle(
+  businessId: string,
+  params: BucketRangeParams = {}
+): Promise<PassLifecycleResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/stats/pass-lifecycle${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface BusinessInactiveSnapshotResponse {
+  zombie_customers: number;
+  total_customers: number;
+}
+
+export async function fetchBusinessInactiveSnapshot(
+  businessId: string
+): Promise<BusinessInactiveSnapshotResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/stats/inactive-snapshot`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface TrialCohortRow {
+  cohort_week: string;
+  cohort_size: number;
+  converted_w1: number;
+  converted_w2: number;
+  converted_w4: number;
+  converted_w8: number;
+}
+
+export interface TrialCohortsResponse {
+  cohorts: TrialCohortRow[];
+}
+
+export async function fetchTrialCohorts(
+  weeks: number = 12
+): Promise<TrialCohortsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/trial-cohorts?weeks=${weeks}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface BroadcastDeliverabilityBucket {
+  period_start: string;
+  total: number;
+  reachable: number;
+  apple_ok: number;
+  apple_fail: number;
+  google_ok: number;
+  google_fail: number;
+  google_not_inst: number;
+  google_throttled: number;
+  skipped_no_push: number;
+}
+
+export interface BroadcastDeliverabilityResponse {
+  buckets: BroadcastDeliverabilityBucket[];
+}
+
+export async function fetchBroadcastDeliverability(
+  params: BucketRangeParams = {}
+): Promise<BroadcastDeliverabilityResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/broadcast-deliverability${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface StampHeatmapCell {
+  dow: number;
+  hour: number;
+  stamps: number;
+}
+
+export interface StampHeatmapResponse {
+  cells: StampHeatmapCell[];
+}
+
+export async function fetchStampHeatmap(
+  params: RangeParams = {}
+): Promise<StampHeatmapResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/stamp-heatmap${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface DensityRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  stamps_7d: number;
+  customers_total: number;
+  stamps_per_customer: number;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesDensityResponse {
+  items: DensityRow[];
+}
+
+export async function fetchTopBusinessesDensity(
+  limit: number = 10
+): Promise<TopBusinessesDensityResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses-density?limit=${limit}`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());
