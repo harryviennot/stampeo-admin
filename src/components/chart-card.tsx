@@ -21,7 +21,7 @@ export function ChartCard({
   className,
 }: ChartCardProps) {
   return (
-    <Card className={cn("flex flex-col", className)}>
+    <Card className={cn("flex flex-col min-w-0", className)}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
