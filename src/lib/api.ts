@@ -578,6 +578,37 @@ export async function fetchPassLifecycle(
   return res.json();
 }
 
+export async function fetchBusinessPassLifecycle(
+  businessId: string,
+  params: BucketRangeParams = {}
+): Promise<PassLifecycleResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/stats/pass-lifecycle${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface BusinessInactiveSnapshotResponse {
+  zombie_customers: number;
+  total_customers: number;
+}
+
+export async function fetchBusinessInactiveSnapshot(
+  businessId: string
+): Promise<BusinessInactiveSnapshotResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/stats/inactive-snapshot`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export interface TrialCohortRow {
   cohort_week: string;
   cohort_size: number;

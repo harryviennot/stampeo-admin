@@ -8,6 +8,7 @@ import { useBusiness } from "@/hooks/use-businesses";
 import { BusinessHeader } from "./_components/business-header";
 import { StatsRow } from "./_components/stats-row";
 import { ChartsRow } from "./_components/charts-row";
+import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
 import { ActivityBadge } from "./_components/activity-badge";
 import { BusinessTabs } from "./_components/tabs";
 
@@ -43,6 +44,7 @@ export default function BusinessDetailPage() {
       </div>
       <StatsRow businessId={business.id} />
       <ChartsRow businessId={business.id} />
+      <PassLifecycleChart businessId={business.id} />
       <BusinessTabs business={business} />
     </div>
   );

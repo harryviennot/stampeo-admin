@@ -39,6 +39,9 @@ export const adminKeys = {
     detail: (id: string) => ["businesses", "detail", id] as const,
     stats: (id: string) => ["businesses", "stats", id] as const,
     members: (id: string) => ["businesses", "members", id] as const,
+    passLifecycle: (id: string, p: BucketRangeParams) =>
+      ["businesses", "pass-lifecycle", id, p] as const,
+    inactive: (id: string) => ["businesses", "inactive", id] as const,
   },
   users: {
     all: ["users"] as const,
