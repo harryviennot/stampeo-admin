@@ -11,12 +11,12 @@ import {
 import { useOnboardingFunnel } from "@/hooks/use-stats";
 
 const STEP_LABELS: Record<number, string> = {
-  1: "Welcome",
-  2: "Business info",
-  3: "Discovery",
+  1: "Business info",
+  2: "Type / category",
+  3: "Card design",
   4: "Account",
-  5: "Card design",
-  6: "Launch",
+  5: "Plan",
+  6: "Done",
 };
 
 const config: ChartConfig = {
@@ -51,13 +51,25 @@ export function OnboardingFunnelChart() {
       subtitle="Last 90 days · wizard step completion"
       info={
         <>
-          <p className="font-medium text-foreground">Where prospects drop off during signup</p>
+          <p className="font-medium text-foreground">Post-auth signup drop-off</p>
           <p className="mt-1 text-muted-foreground">
-            Reconstructs the 6-step wizard by combining abandoned{" "}
-            <span className="font-medium">onboarding_progress</span> rows (people still
-            mid-flow) with completed signups in <span className="font-medium">businesses</span>{" "}
-            (they reached every step). A bar turns red when ≥30% of the previous step drops.{" "}
+            Reconstructs the 6-step wizard (Business → Type → Design → Account →
+            Plan → Done) by combining abandoned{" "}
+            <span className="font-medium">onboarding_progress</span> rows with
+            completed signups in <span className="font-medium">businesses</span>.
+            A bar turns red when ≥30% of the previous step drops.{" "}
             <span className="font-medium">Shorter = leakier.</span>
+          </p>
+          <p className="mt-2 text-muted-foreground">
+            <span className="font-medium text-foreground">Caveat:</span>{" "}
+            <span className="font-medium">onboarding_progress</span> rows are
+            only created after the user authenticates (step 4), so steps 1–3
+            look identical and the top number is{" "}
+            <span className="font-medium">authenticated users</span>, not page
+            visitors. Pre-auth drop-off (steps 1–3 in sessionStorage) is
+            invisible here — use the showcase analytics for that. Step 6 is
+            never explicitly marked complete, so its count always equals{" "}
+            <span className="font-medium">completed signups</span>.
           </p>
         </>
       }
