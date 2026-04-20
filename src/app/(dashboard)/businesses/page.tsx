@@ -34,7 +34,6 @@ import {
   fetchHeardFromStats,
   activateBusiness,
   suspendBusiness,
-  deleteBusiness,
   type Business,
   type HeardFromStat,
 } from "@/lib/api";
@@ -64,7 +63,7 @@ const HEARD_FROM_COLORS: Record<string, string> = {
   other: "#6B7280",
 };
 
-type StatusFilter = "all" | "pending" | "active" | "suspended";
+type StatusFilter = "all" | "active" | "suspended";
 type TierFilter = "all" | "pay" | "pro";
 
 export default function BusinessesPage() {
@@ -138,21 +137,6 @@ function BusinessesContent() {
     }
   };
 
-  const handleDeny = async (id: string) => {
-    setActing(id);
-    try {
-      await deleteBusiness(id);
-      toast.success("Application denied and business deleted");
-      await loadData();
-    } catch (err) {
-      toast.error("Failed to deny application", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setActing(null);
-    }
-  };
-
   const filtered = useMemo(() => {
     let result = businesses;
 
@@ -178,12 +162,11 @@ function BusinessesContent() {
       );
     }
 
-    // Sort: pending first, then by created_at desc
-    result.sort((a, b) => {
-      if (a.status === "pending" && b.status !== "pending") return -1;
-      if (a.status !== "pending" && b.status === "pending") return 1;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    // Sort by created_at desc
+    result.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
     return result;
   }, [businesses, statusFilter, tierFilter, search]);
@@ -196,9 +179,8 @@ function BusinessesContent() {
     );
   }
 
-  const statusCounts = {
+  const statusCounts: Record<StatusFilter, number> = {
     all: businesses.length,
-    pending: businesses.filter((b) => b.status === "pending").length,
     active: businesses.filter((b) => b.status === "active").length,
     suspended: businesses.filter((b) => b.status === "suspended").length,
   };
@@ -226,7 +208,7 @@ function BusinessesContent() {
         </div>
 
         <div className="flex gap-1">
-          {(["all", "pending", "active", "suspended"] as const).map((s) => (
+          {(["all", "active", "suspended"] as const).map((s) => (
             <Button
               key={s}
               variant={statusFilter === s ? "default" : "outline"}
@@ -320,12 +302,7 @@ function BusinessesContent() {
               </TableHeader>
               <TableBody>
                 {filtered.map((biz) => (
-                  <TableRow
-                    key={biz.id}
-                    className={
-                      biz.status === "pending" ? "bg-amber-50/50" : undefined
-                    }
-                  >
+                  <TableRow key={biz.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {biz.logo_url ? (
@@ -418,53 +395,6 @@ function BusinessesContent() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      ) : biz.status === "pending" ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            disabled={acting === biz.id}
-                            onClick={() => handleActivate(biz.id)}
-                          >
-                            {acting === biz.id && (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            )}
-                            Accept
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-red-200 text-red-600 hover:bg-red-50"
-                                disabled={acting === biz.id}
-                              >
-                                Deny
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Deny application?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete &quot;{biz.name}
-                                  &quot; and all associated data. This action
-                                  cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
-                                  onClick={() => handleDeny(biz.id)}
-                                >
-                                  Deny &amp; Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
                       ) : (
                         <Button
                           size="sm"
