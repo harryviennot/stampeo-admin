@@ -1,6 +1,8 @@
 import type {
+  BucketRangeParams,
   BusinessListParams,
   CustomerSignupsByBizParams,
+  RangeParams,
   TimeseriesParams,
   UserListParams,
 } from "./api";
@@ -17,6 +19,19 @@ export const adminKeys = {
     customerSignupsByBiz: (p: CustomerSignupsByBizParams) =>
       ["stats", "customer-signups-by-biz", p] as const,
     heardFrom: ["stats", "heard-from"] as const,
+    onboardingFunnel: (p: RangeParams) =>
+      ["stats", "onboarding-funnel", p] as const,
+    activationFunnel: (p: RangeParams) =>
+      ["stats", "activation-funnel", p] as const,
+    inactiveSnapshot: ["stats", "inactive-snapshot"] as const,
+    passLifecycle: (p: BucketRangeParams) =>
+      ["stats", "pass-lifecycle", p] as const,
+    trialCohorts: (weeks: number) => ["stats", "trial-cohorts", weeks] as const,
+    broadcastDeliverability: (p: BucketRangeParams) =>
+      ["stats", "broadcast-deliverability", p] as const,
+    stampHeatmap: (p: RangeParams) => ["stats", "stamp-heatmap", p] as const,
+    topBusinessesDensity: (limit: number) =>
+      ["stats", "top-businesses-density", limit] as const,
   },
   businesses: {
     all: ["businesses"] as const,

@@ -8,28 +8,41 @@ import {
   CircleDot,
   Clock,
   Crown,
+  Ghost,
   Gift,
   ShieldCheck,
+  Skull,
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { ChartCard } from "@/components/chart-card";
-import { useBillingBreakdown, useGlobalStats } from "@/hooks/use-stats";
+import {
+  useBillingBreakdown,
+  useGlobalStats,
+  useInactiveSnapshot,
+} from "@/hooks/use-stats";
 import { Cell, Pie, PieChart } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { ActivationFunnelChart } from "./_components/activation-funnel-chart";
+import { BroadcastDeliverabilityChart } from "./_components/broadcast-deliverability-chart";
 import { BusinessSignupsChart } from "./_components/business-signups-chart";
 import { CustomerSignupsChart } from "./_components/customer-signups-chart";
+import { OnboardingFunnelChart } from "./_components/onboarding-funnel-chart";
+import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
+import { StampHeatmapCard } from "./_components/stamp-heatmap-card";
 import { StampsChart } from "./_components/stamps-chart";
 import {
   TopBusinessesAllTimeCard,
   TopBusinessesRollingCard,
 } from "./_components/top-businesses-cards";
+import { TopBusinessesDensityCard } from "./_components/top-businesses-density-card";
+import { TrialCohortsChart } from "./_components/trial-cohorts-chart";
 
 const billingColors: Record<string, string> = {
   trial: "var(--chart-1)",
@@ -52,6 +65,20 @@ const billingLabels: Record<string, string> = {
 export default function DashboardPage() {
   const { data: stats, isPending: statsPending } = useGlobalStats();
   const { data: billing, isPending: billingPending } = useBillingBreakdown();
+  const { data: inactive, isPending: inactivePending } = useInactiveSnapshot();
+
+  const zombiePct =
+    inactive && inactive.total_customers > 0
+      ? Math.round((inactive.zombie_customers / inactive.total_customers) * 100)
+      : null;
+  const ghostPct =
+    inactive && inactive.total_businesses > 0
+      ? Math.round(
+          (inactive.ghost_businesses_7d / inactive.total_businesses) * 100
+        )
+      : null;
+  const zombieSuffix = zombiePct === null ? "" : ` · ${zombiePct}%`;
+  const ghostSuffix = ghostPct === null ? "" : ` · ${ghostPct}%`;
 
   const billingPieData = billing
     ? (
@@ -140,6 +167,28 @@ export default function DashboardPage() {
           loading={statsPending}
           icon={<Gift className="h-4 w-4" />}
         />
+        <StatCard
+          label={`Zombie Customers${zombieSuffix}`}
+          value={inactive?.zombie_customers}
+          loading={inactivePending}
+          icon={<Skull className="h-4 w-4" />}
+          badgeClass={
+            zombiePct !== null && zombiePct >= 30
+              ? "bg-red-100 text-red-700"
+              : "bg-amber-100 text-amber-700"
+          }
+        />
+        <StatCard
+          label={`Ghost Businesses · 7d+${ghostSuffix}`}
+          value={inactive?.ghost_businesses_7d}
+          loading={inactivePending}
+          icon={<Ghost className="h-4 w-4" />}
+          badgeClass={
+            ghostPct !== null && ghostPct >= 30
+              ? "bg-red-100 text-red-700"
+              : "bg-amber-100 text-amber-700"
+          }
+        />
       </div>
 
       {/* Pending alert */}
@@ -179,11 +228,30 @@ export default function DashboardPage() {
         <CustomerSignupsChart />
       </div>
 
-      {/* Top businesses: rolling + all-time on their own row */}
+      {/* Funnels: pre-signup onboarding + post-signup activation */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <OnboardingFunnelChart />
+        <ActivationFunnelChart />
+      </div>
+
+      {/* Pass lifecycle — full width */}
+      <PassLifecycleChart />
+
+      {/* Trial → active cohort conversion — full width */}
+      <TrialCohortsChart />
+
+      {/* Broadcast deliverability — full width */}
+      <BroadcastDeliverabilityChart />
+
+      {/* Stamp heatmap — full width */}
+      <StampHeatmapCard />
+
+      {/* Top businesses: rolling + all-time + density */}
       <div className="grid gap-4 lg:grid-cols-2">
         <TopBusinessesRollingCard />
-        <TopBusinessesAllTimeCard />
+        <TopBusinessesDensityCard />
       </div>
+      <TopBusinessesAllTimeCard />
 
       {/* Billing status — its own row */}
       <ChartCard

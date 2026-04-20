@@ -2,14 +2,24 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  fetchActivationFunnel,
   fetchBillingBreakdown,
+  fetchBroadcastDeliverability,
   fetchCustomerSignupsByBusiness,
   fetchGlobalStats,
   fetchHeardFromStats,
+  fetchInactiveSnapshot,
+  fetchOnboardingFunnel,
+  fetchPassLifecycle,
+  fetchStampHeatmap,
   fetchTimeseries,
   fetchTopBusinesses,
   fetchTopBusinessesAllTime,
+  fetchTopBusinessesDensity,
+  fetchTrialCohorts,
+  type BucketRangeParams,
   type CustomerSignupsByBizParams,
+  type RangeParams,
   type TimeseriesParams,
 } from "@/lib/api";
 import { adminKeys } from "@/lib/query-keys";
@@ -62,5 +72,61 @@ export function useHeardFromStats() {
   return useQuery({
     queryKey: adminKeys.stats.heardFrom,
     queryFn: fetchHeardFromStats,
+  });
+}
+
+export function useOnboardingFunnel(params: RangeParams = {}) {
+  return useQuery({
+    queryKey: adminKeys.stats.onboardingFunnel(params),
+    queryFn: () => fetchOnboardingFunnel(params),
+  });
+}
+
+export function useActivationFunnel(params: RangeParams = {}) {
+  return useQuery({
+    queryKey: adminKeys.stats.activationFunnel(params),
+    queryFn: () => fetchActivationFunnel(params),
+  });
+}
+
+export function useInactiveSnapshot() {
+  return useQuery({
+    queryKey: adminKeys.stats.inactiveSnapshot,
+    queryFn: fetchInactiveSnapshot,
+  });
+}
+
+export function usePassLifecycle(params: BucketRangeParams = {}) {
+  return useQuery({
+    queryKey: adminKeys.stats.passLifecycle(params),
+    queryFn: () => fetchPassLifecycle(params),
+  });
+}
+
+export function useTrialCohorts(weeks: number = 12) {
+  return useQuery({
+    queryKey: adminKeys.stats.trialCohorts(weeks),
+    queryFn: () => fetchTrialCohorts(weeks),
+  });
+}
+
+export function useBroadcastDeliverability(params: BucketRangeParams = {}) {
+  return useQuery({
+    queryKey: adminKeys.stats.broadcastDeliverability(params),
+    queryFn: () => fetchBroadcastDeliverability(params),
+  });
+}
+
+export function useStampHeatmap(params: RangeParams = {}) {
+  return useQuery({
+    queryKey: adminKeys.stats.stampHeatmap(params),
+    queryFn: () => fetchStampHeatmap(params),
+  });
+}
+
+export function useTopBusinessesDensity(limit: number = 10) {
+  return useQuery({
+    queryKey: adminKeys.stats.topBusinessesDensity(limit),
+    queryFn: () => fetchTopBusinessesDensity(limit),
   });
 }
