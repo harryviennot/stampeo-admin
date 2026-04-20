@@ -4,8 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -133,7 +131,7 @@ export function ChartsRow({ businessId }: { businessId: string }) {
             config={customersConfig}
             className="h-[220px] w-full"
           >
-            <LineChart data={buckets} margin={{ left: 4, right: 4 }}>
+            <BarChart data={buckets} margin={{ left: 4, right: 4 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="period_start"
@@ -155,14 +153,12 @@ export function ChartsRow({ businessId }: { businessId: string }) {
                   />
                 }
               />
-              <Line
-                type="monotone"
+              <Bar
                 dataKey="new_customers"
-                stroke="var(--color-new_customers)"
-                strokeWidth={2}
-                dot={{ r: 3 }}
+                fill="var(--color-new_customers)"
+                radius={4}
               />
-            </LineChart>
+            </BarChart>
           </ChartContainer>
         )}
       </ChartCard>

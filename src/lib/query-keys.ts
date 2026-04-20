@@ -1,5 +1,6 @@
 import type {
   BusinessListParams,
+  CustomerSignupsByBizParams,
   TimeseriesParams,
   UserListParams,
 } from "./api";
@@ -11,6 +12,10 @@ export const adminKeys = {
     timeseries: (p: TimeseriesParams) => ["stats", "timeseries", p] as const,
     topBusinesses: (limit: number) =>
       ["stats", "top-businesses", limit] as const,
+    topBusinessesAllTime: (limit: number) =>
+      ["stats", "top-businesses-all-time", limit] as const,
+    customerSignupsByBiz: (p: CustomerSignupsByBizParams) =>
+      ["stats", "customer-signups-by-biz", p] as const,
     heardFrom: ["stats", "heard-from"] as const,
   },
   businesses: {

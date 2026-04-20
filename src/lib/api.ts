@@ -156,14 +156,40 @@ export interface TopBusinessRow {
   name: string;
   tier: string;
   billing_status: string;
-  stamps_this_week: number;
-  stamps_last_week: number;
+  stamps_current: number;
+  stamps_prior: number;
   delta_pct: number | null;
   last_activity_at: string | null;
 }
 
 export interface TopBusinessesResponse {
   items: TopBusinessRow[];
+}
+
+export interface TopBusinessAllTimeRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  billing_status: string;
+  stamps_total: number;
+  customers_total: number;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesAllTimeResponse {
+  items: TopBusinessAllTimeRow[];
+}
+
+export interface CustomerSignupsByBusiness {
+  top_businesses: Array<{
+    business_id: string;
+    name: string;
+    total: number;
+  }>;
+  buckets: Array<{
+    period_start: string;
+    values: Record<string, number>;
+  }>;
 }
 
 export interface HeardFromStat {
@@ -418,6 +444,37 @@ export async function fetchTopBusinesses(
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${API_BASE_URL}/admin/stats/top-businesses?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchTopBusinessesAllTime(
+  limit: number = 10
+): Promise<TopBusinessesAllTimeResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses-all-time?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface CustomerSignupsByBizParams {
+  bucket?: "day" | "week";
+  range?: string;
+  top_n?: number;
+}
+
+export async function fetchCustomerSignupsByBusiness(
+  params: CustomerSignupsByBizParams = {}
+): Promise<CustomerSignupsByBusiness> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/customer-signups-by-business${qs}`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());
