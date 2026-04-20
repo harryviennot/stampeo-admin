@@ -1,13 +1,11 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,17 +27,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { fetchBusinessDetail, type BusinessListParams } from "@/lib/api";
 import {
-  fetchBusinesses,
-  fetchHeardFromStats,
-  activateBusiness,
-  suspendBusiness,
-  type Business,
-  type HeardFromStat,
-} from "@/lib/api";
-import { BusinessInitials, PlanBadge, ResellerBadge, StatusBadge } from "@/components/business-utils";
-import { Loader2, Search } from "lucide-react";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+  BusinessInitials,
+  BillingStatusBadge,
+  PlanBadge,
+  ResellerBadge,
+  StatusBadge,
+} from "@/components/business-utils";
+import { DataTablePagination } from "@/components/data-table-pagination";
+import { EmptyState } from "@/components/empty-state";
+import {
+  useActivateBusiness,
+  useBusinesses,
+  useSuspendBusiness,
+} from "@/hooks/use-businesses";
+import { useHeardFromStats } from "@/hooks/use-stats";
+import { adminKeys } from "@/lib/query-keys";
+import { Loader2, Search, Inbox } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const HEARD_FROM_LABELS: Record<string, string> = {
   google: "Google / Search",
@@ -63,8 +76,10 @@ const HEARD_FROM_COLORS: Record<string, string> = {
   other: "#6B7280",
 };
 
-type StatusFilter = "all" | "active" | "suspended";
-type TierFilter = "all" | "pay" | "pro";
+type StatusFilter = "all" | "pending" | "active" | "suspended";
+type TierFilter = "all" | "starter" | "growth" | "pro";
+
+const PAGE_SIZE = 25;
 
 export default function BusinessesPage() {
   return (
@@ -77,112 +92,56 @@ export default function BusinessesPage() {
 function BusinessesContent() {
   const searchParams = useSearchParams();
   const initialStatus = (searchParams.get("status") as StatusFilter) || "all";
+  const qc = useQueryClient();
 
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [heardFromStats, setHeardFromStats] = useState<HeardFromStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
+  const [page, setPage] = useState(0);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [data, stats] = await Promise.all([
-        fetchBusinesses(),
-        fetchHeardFromStats(),
-      ]);
-      setBusinesses(data);
-      setHeardFromStats(stats);
-    } catch (err) {
-      toast.error("Failed to load businesses", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const handleActivate = async (id: string) => {
-    setActing(id);
-    try {
-      await activateBusiness(id);
-      toast.success("Business activated");
-      await loadData();
-    } catch (err) {
-      toast.error("Failed to activate", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setActing(null);
-    }
+  const params: BusinessListParams = {
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    search: search.trim() || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    tier: tierFilter === "all" ? undefined : tierFilter,
   };
 
-  const handleSuspend = async (id: string) => {
-    setActing(id);
-    try {
-      await suspendBusiness(id);
-      toast.success("Business suspended");
-      await loadData();
-    } catch (err) {
-      toast.error("Failed to suspend", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setActing(null);
-    }
+  const { data, isPending, isPlaceholderData } = useBusinesses(params);
+  const { data: heardFromStats } = useHeardFromStats();
+  const activate = useActivateBusiness();
+  const suspend = useSuspendBusiness();
+
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+
+  const resetPage = () => setPage(0);
+
+  const handleActivate = (id: string, name: string) => {
+    activate.mutate(id, {
+      onSuccess: () => toast.success(`Activated ${name}`),
+      onError: (err) =>
+        toast.error("Failed to activate", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
   };
 
-  const filtered = useMemo(() => {
-    let result = businesses;
+  const handleSuspend = (id: string, name: string) => {
+    suspend.mutate(id, {
+      onSuccess: () => toast.success(`Suspended ${name}`),
+      onError: (err) =>
+        toast.error("Failed to suspend", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
+  };
 
-    // Status filter
-    if (statusFilter !== "all") {
-      result = result.filter((b) => b.status === statusFilter);
-    }
-
-    // Tier filter
-    if (tierFilter !== "all") {
-      result = result.filter((b) => b.subscription_tier === tierFilter);
-    }
-
-    // Search
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          b.owner_email?.toLowerCase().includes(q) ||
-          b.owner_name?.toLowerCase().includes(q) ||
-          b.url_slug.toLowerCase().includes(q)
-      );
-    }
-
-    // Sort by created_at desc
-    result.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-
-    return result;
-  }, [businesses, statusFilter, tierFilter, search]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const statusCounts: Record<StatusFilter, number> = {
-    all: businesses.length,
-    active: businesses.filter((b) => b.status === "active").length,
-    suspended: businesses.filter((b) => b.status === "suspended").length,
+  const prefetchDetail = (id: string) => {
+    qc.prefetchQuery({
+      queryKey: adminKeys.businesses.detail(id),
+      queryFn: () => fetchBusinessDetail(id),
+    });
   };
 
   return (
@@ -190,8 +149,7 @@ function BusinessesContent() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Businesses</h1>
         <p className="text-muted-foreground">
-          {businesses.length} business{businesses.length !== 1 && "es"} on the
-          platform.
+          {total} business{total !== 1 && "es"} on the platform.
         </p>
       </div>
 
@@ -202,37 +160,41 @@ function BusinessesContent() {
           <Input
             placeholder="Search by name, email, slug..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              resetPage();
+            }}
             className="pl-9"
           />
         </div>
 
         <div className="flex gap-1">
-          {(["all", "active", "suspended"] as const).map((s) => (
+          {(["all", "pending", "active", "suspended"] as const).map((s) => (
             <Button
               key={s}
               variant={statusFilter === s ? "default" : "outline"}
               size="sm"
-              onClick={() => setStatusFilter(s)}
+              onClick={() => {
+                setStatusFilter(s);
+                resetPage();
+              }}
               className="capitalize"
             >
               {s}
-              {statusCounts[s] > 0 && (
-                <span className="ml-1 text-xs opacity-70">
-                  {statusCounts[s]}
-                </span>
-              )}
             </Button>
           ))}
         </div>
 
         <div className="flex gap-1">
-          {(["all", "pay", "pro"] as const).map((t) => (
+          {(["all", "starter", "growth", "pro"] as const).map((t) => (
             <Button
               key={t}
               variant={tierFilter === t ? "default" : "outline"}
               size="sm"
-              onClick={() => setTierFilter(t)}
+              onClick={() => {
+                setTierFilter(t);
+                resetPage();
+              }}
               className="capitalize"
             >
               {t}
@@ -242,10 +204,12 @@ function BusinessesContent() {
       </div>
 
       {/* Heard From Pie Chart */}
-      {heardFromStats.length > 0 && (
+      {heardFromStats && heardFromStats.length > 0 && (
         <Card>
           <CardContent className="pt-6">
-            <h3 className="text-sm font-semibold mb-4">Where are businesses hearing about us?</h3>
+            <h3 className="text-sm font-semibold mb-4">
+              Where are businesses hearing about us?
+            </h3>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -269,9 +233,7 @@ function BusinessesContent() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value}`, "Businesses"]}
-                  />
+                  <Tooltip formatter={(value) => [`${value}`, "Businesses"]} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -283,10 +245,16 @@ function BusinessesContent() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          {filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No businesses match your filters.
-            </p>
+          {isPending ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon={<Inbox className="h-6 w-6" />}
+              title="No businesses match your filters"
+              description="Try adjusting search or clearing filters."
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -295,125 +263,151 @@ function BusinessesContent() {
                   <TableHead>Owner</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Billing</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((biz) => (
-                  <TableRow key={biz.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {biz.logo_url ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={biz.logo_url}
-                            alt={biz.name}
-                            className="h-9 w-9 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <BusinessInitials
-                            name={biz.name}
-                            color={biz.settings?.accentColor}
-                          />
-                        )}
-                        <div>
-                          <Link
-                            href={`/businesses/${biz.id}`}
-                            className="font-medium hover:underline"
-                          >
-                            {biz.name}
-                          </Link>
-                          <div className="font-mono text-xs text-muted-foreground">
-                            /{biz.url_slug}
+                {items.map((biz) => {
+                  const busy =
+                    (activate.isPending &&
+                      activate.variables === biz.id) ||
+                    (suspend.isPending && suspend.variables === biz.id);
+                  return (
+                    <TableRow key={biz.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {biz.logo_url ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={biz.logo_url}
+                              alt={biz.name}
+                              className="h-9 w-9 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <BusinessInitials
+                              name={biz.name}
+                              color={biz.settings?.accentColor}
+                            />
+                          )}
+                          <div>
+                            <Link
+                              href={`/businesses/${biz.id}`}
+                              onMouseEnter={() => prefetchDetail(biz.id)}
+                              className="font-medium hover:underline"
+                            >
+                              {biz.name}
+                            </Link>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              /{biz.url_slug}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {biz.owner_name && (
-                          <div className="flex items-center gap-1.5 font-medium">
-                            {biz.owner_name}
-                            {biz.owner_is_reseller && <ResellerBadge />}
-                          </div>
-                        )}
-                        {biz.owner_email && (
-                          <div className="text-xs text-muted-foreground">
-                            {biz.owner_email}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {biz.settings?.category || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={biz.status} />
-                    </TableCell>
-                    <TableCell>
-                      <PlanBadge tier={biz.subscription_tier} />
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {biz.status === "active" && biz.activated_at
-                        ? new Date(biz.activated_at).toLocaleDateString()
-                        : new Date(biz.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {biz.status === "active" ? (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-200 text-red-600 hover:bg-red-50"
-                              disabled={acting === biz.id}
-                            >
-                              Suspend
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Suspend business?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will suspend &quot;{biz.name}&quot;. They
-                                will no longer be able to stamp customers or
-                                manage their account.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-red-600 hover:bg-red-700"
-                                onClick={() => handleSuspend(biz.id)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {biz.owner_name && (
+                            <div className="flex items-center gap-1.5 font-medium">
+                              {biz.owner_name}
+                              {biz.owner_is_reseller && <ResellerBadge />}
+                            </div>
+                          )}
+                          {biz.owner_email && (
+                            <div className="text-xs text-muted-foreground">
+                              {biz.owner_email}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {biz.settings?.category || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={biz.status} />
+                      </TableCell>
+                      <TableCell>
+                        <BillingStatusBadge status={biz.billing_status} />
+                      </TableCell>
+                      <TableCell>
+                        <PlanBadge tier={biz.subscription_tier} />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {biz.status === "active" && biz.activated_at
+                          ? new Date(biz.activated_at).toLocaleDateString()
+                          : new Date(biz.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {biz.status === "active" ? (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-red-200 text-red-600 hover:bg-red-50"
+                                disabled={busy}
                               >
                                 Suspend
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-green-200 text-green-600 hover:bg-green-50"
-                          disabled={acting === biz.id}
-                          onClick={() => handleActivate(biz.id)}
-                        >
-                          {acting === biz.id && (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          )}
-                          Reactivate
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Suspend business?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will suspend &quot;{biz.name}&quot;. They
+                                  will no longer be able to stamp customers or
+                                  manage their account.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-red-600 hover:bg-red-700"
+                                  onClick={() =>
+                                    handleSuspend(biz.id, biz.name)
+                                  }
+                                >
+                                  Suspend
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-200 text-green-600 hover:bg-green-50"
+                            disabled={busy}
+                            onClick={() => handleActivate(biz.id, biz.name)}
+                          >
+                            {busy && (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            )}
+                            {biz.status === "pending"
+                              ? "Approve"
+                              : "Reactivate"}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
+          )}
+          {items.length > 0 && (
+            <div className="border-t">
+              <DataTablePagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={total}
+                onPageChange={setPage}
+                isPlaceholder={isPlaceholderData}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

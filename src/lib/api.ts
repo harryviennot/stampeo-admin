@@ -71,11 +71,99 @@ export interface Business {
   activated_at: string | null;
   created_at: string;
   updated_at: string;
+  // Billing (from migration 48)
+  billing_status?:
+    | "trial"
+    | "active"
+    | "past_due"
+    | "cancelled"
+    | "grace"
+    | "suspended";
+  is_founding_partner?: boolean;
+  trial_ends_at?: string | null;
+  grace_ends_at?: string | null;
   // Onboarding discovery fields (admin-only)
   website?: string | null;
   phone?: string | null;
   heard_from?: string | null;
   heard_from_other?: string | null;
+}
+
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface BusinessListParams {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  status?: "pending" | "active" | "suspended";
+  tier?: "starter" | "growth" | "pro";
+  billing_status?:
+    | "trial"
+    | "active"
+    | "past_due"
+    | "cancelled"
+    | "grace"
+    | "suspended";
+}
+
+export interface UserListParams {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  role?: "owner" | "admin" | "scanner" | "reseller";
+}
+
+export interface TimeseriesParams {
+  bucket?: "day" | "week";
+  range?: string; // e.g. "12w", "28d"
+  business_id?: string;
+}
+
+export interface TimeseriesBucket {
+  period_start: string;
+  new_businesses: number;
+  new_customers: number;
+  stamps_added: number;
+  redemptions: number;
+}
+
+export interface TimeseriesResponse {
+  buckets: TimeseriesBucket[];
+}
+
+export interface BillingBreakdown {
+  trial: number;
+  active: number;
+  grace: number;
+  past_due: number;
+  suspended: number;
+  cancelled: number;
+  founding_partner_count: number;
+  grace_expiring_soon: Array<{
+    business_id: string;
+    name: string;
+    grace_ends_at: string;
+  }>;
+}
+
+export interface TopBusinessRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  billing_status: string;
+  stamps_this_week: number;
+  stamps_last_week: number;
+  delta_pct: number | null;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesResponse {
+  items: TopBusinessRow[];
 }
 
 export interface HeardFromStat {
@@ -234,9 +322,22 @@ export async function fetchHeardFromStats(): Promise<HeardFromStat[]> {
   return res.json();
 }
 
-export async function fetchBusinesses(): Promise<Business[]> {
+function buildQuery(params: object): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    sp.set(k, String(v));
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+export async function fetchBusinesses(
+  params: BusinessListParams = {}
+): Promise<Paginated<Business>> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/admin/businesses`, { headers });
+  const qs = buildQuery(params);
+  const res = await fetch(`${API_BASE_URL}/admin/businesses${qs}`, { headers });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -282,9 +383,50 @@ export async function revokePassTypeId(
   return res.json();
 }
 
-export async function fetchUsers(): Promise<AdminUser[]> {
+export async function fetchUsers(
+  params: UserListParams = {}
+): Promise<Paginated<AdminUser>> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/admin/users`, { headers });
+  const qs = buildQuery(params);
+  const res = await fetch(`${API_BASE_URL}/admin/users${qs}`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchTimeseries(
+  params: TimeseriesParams = {}
+): Promise<TimeseriesResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(`${API_BASE_URL}/admin/stats/timeseries${qs}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchBillingBreakdown(): Promise<BillingBreakdown> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/stats/billing`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchTopBusinesses(
+  limit: number = 10
+): Promise<TopBusinessesResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchBusinessDetail(id: string): Promise<Business> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}`, { headers });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -36,18 +36,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  fetchUserDetail,
-  grantReseller,
-  revokeReseller,
-  updateResellerDiscount,
-  type AdminUserDetail,
-} from "@/lib/api";
-import {
   BusinessInitials,
   ResellerBadge,
   StatusBadge,
-  PlanBadge,
 } from "@/components/business-utils";
+import {
+  useGrantReseller,
+  useRevokeReseller,
+  useUpdateResellerDiscount,
+  useUser,
+} from "@/hooks/use-users";
 
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, string> = {
@@ -75,99 +73,99 @@ export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [user, setUser] = useState<AdminUserDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [resellerActing, setResellerActing] = useState(false);
+  const { data: user, isPending, isError, error } = useUser(id);
+  const grant = useGrantReseller();
+  const revoke = useRevokeReseller();
+  const update = useUpdateResellerDiscount();
+  const resellerActing =
+    grant.isPending || revoke.isPending || update.isPending;
+
   const [discountPercent, setDiscountPercent] = useState(25);
   const [newDiscountPercent, setNewDiscountPercent] = useState(25);
   const [applyToExisting, setApplyToExisting] = useState(false);
   const [removeDiscounts, setRemoveDiscounts] = useState(false);
 
-  const loadUser = useCallback(async () => {
-    try {
-      const data = await fetchUserDetail(id);
-      setUser(data);
-    } catch (err) {
+  useEffect(() => {
+    if (isError) {
       toast.error("User not found", {
-        description: err instanceof Error ? err.message : "Unknown error",
+        description: error instanceof Error ? error.message : "Unknown error",
       });
       router.push("/users");
-    } finally {
-      setLoading(false);
     }
-  }, [id, router]);
+  }, [isError, error, router]);
 
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
-
-  const handleGrantReseller = async () => {
+  const handleGrantReseller = () => {
     if (!user) return;
     if (discountPercent < 1 || discountPercent > 50) {
       toast.error("Discount must be between 1% and 50%");
       return;
     }
-    setResellerActing(true);
-    try {
-      await grantReseller(user.id, discountPercent);
-      toast.success(`Reseller status granted with ${discountPercent}% discount`);
-      await loadUser();
-    } catch (err) {
-      toast.error("Failed to grant reseller status", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setResellerActing(false);
-    }
+    grant.mutate(
+      { userId: user.id, discountPercent },
+      {
+        onSuccess: () =>
+          toast.success(
+            `Reseller status granted with ${discountPercent}% discount`
+          ),
+        onError: (err) =>
+          toast.error("Failed to grant reseller status", {
+            description: err instanceof Error ? err.message : "Unknown error",
+          }),
+      }
+    );
   };
 
-  const handleRevokeReseller = async () => {
+  const handleRevokeReseller = () => {
     if (!user) return;
-    setResellerActing(true);
-    try {
-      await revokeReseller(user.id, removeDiscounts);
-      toast.success(
-        removeDiscounts
-          ? "Reseller status revoked and discounts removed"
-          : "Reseller status revoked (existing discounts kept)"
-      );
-      setRemoveDiscounts(false);
-      await loadUser();
-    } catch (err) {
-      toast.error("Failed to revoke reseller status", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setResellerActing(false);
-    }
+    revoke.mutate(
+      { userId: user.id, removeExistingDiscounts: removeDiscounts },
+      {
+        onSuccess: () => {
+          toast.success(
+            removeDiscounts
+              ? "Reseller status revoked and discounts removed"
+              : "Reseller status revoked (existing discounts kept)"
+          );
+          setRemoveDiscounts(false);
+        },
+        onError: (err) =>
+          toast.error("Failed to revoke reseller status", {
+            description: err instanceof Error ? err.message : "Unknown error",
+          }),
+      }
+    );
   };
 
-  const handleUpdateDiscount = async () => {
+  const handleUpdateDiscount = () => {
     if (!user) return;
     if (newDiscountPercent < 1 || newDiscountPercent > 50) {
       toast.error("Discount must be between 1% and 50%");
       return;
     }
-    setResellerActing(true);
-    try {
-      await updateResellerDiscount(user.id, newDiscountPercent, applyToExisting);
-      toast.success(
-        applyToExisting
-          ? `Discount updated to ${newDiscountPercent}% (applied to existing subscriptions)`
-          : `Discount updated to ${newDiscountPercent}% (new subscriptions only)`
-      );
-      setApplyToExisting(false);
-      await loadUser();
-    } catch (err) {
-      toast.error("Failed to update reseller discount", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setResellerActing(false);
-    }
+    update.mutate(
+      {
+        userId: user.id,
+        discountPercent: newDiscountPercent,
+        applyToExisting,
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            applyToExisting
+              ? `Discount updated to ${newDiscountPercent}% (applied to existing subscriptions)`
+              : `Discount updated to ${newDiscountPercent}% (new subscriptions only)`
+          );
+          setApplyToExisting(false);
+        },
+        onError: (err) =>
+          toast.error("Failed to update reseller discount", {
+            description: err instanceof Error ? err.message : "Unknown error",
+          }),
+      }
+    );
   };
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="flex items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

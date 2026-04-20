@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -33,13 +33,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  fetchPassTypeIds,
-  fetchPoolStats,
-  revokePassTypeId,
-  uploadCertificate,
-  type PassTypeId,
-  type PoolStats,
-} from "@/lib/api";
+  useCertPool,
+  usePassTypeIds,
+  useRevokePassTypeId,
+  useUploadCertificate,
+} from "@/hooks/use-certificates";
 import { StatCard } from "@/components/stat-card";
 import {
   ShieldOff,
@@ -67,87 +65,46 @@ const statusConfig = {
 } as const;
 
 export default function CertificatesPage() {
-  const [passTypeIds, setPassTypeIds] = useState<PassTypeId[]>([]);
-  const [stats, setStats] = useState<PoolStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const { data: passTypeIds = [], isPending: loading } = usePassTypeIds();
+  const { data: stats, isPending: statsLoading } = useCertPool();
+  const revoke = useRevokePassTypeId();
+  const upload = useUploadCertificate();
   const [lastUploaded, setLastUploaded] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    try {
-      const data = await fetchPassTypeIds();
-      setPassTypeIds(data);
-    } catch (err) {
-      toast.error("Failed to load certificates", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const handleRevoke = (id: string, identifier: string) => {
+    revoke.mutate(id, {
+      onSuccess: () =>
+        toast.success("Certificate revoked", {
+          description: `${identifier} has been revoked`,
+        }),
+      onError: (err) =>
+        toast.error("Revoke failed", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
+  };
 
-  const loadStats = useCallback(async () => {
-    try {
-      const data = await fetchPoolStats();
-      setStats(data);
-    } catch (err) {
-      toast.error("Failed to load pool stats", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    loadStats();
-  }, [loadData, loadStats]);
-
-  async function handleRevoke(id: string, identifier: string) {
-    setRevokingId(id);
-    try {
-      await revokePassTypeId(id);
-      toast.success("Certificate revoked", {
-        description: `${identifier} has been revoked`,
-      });
-      loadData();
-      loadStats();
-    } catch (err) {
-      toast.error("Revoke failed", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setRevokingId(null);
-    }
-  }
-
-  async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
+  const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setUploading(true);
-
     const form = e.currentTarget;
     const formData = new FormData(form);
+    upload.mutate(formData, {
+      onSuccess: (result) => {
+        setLastUploaded(result.identifier);
+        toast.success("Certificate uploaded successfully", {
+          description: `${result.identifier} is now available in the pool`,
+        });
+        form.reset();
+      },
+      onError: (err) =>
+        toast.error("Upload failed", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
+  };
 
-    try {
-      const result = await uploadCertificate(formData);
-      setLastUploaded(result.identifier);
-      toast.success("Certificate uploaded successfully", {
-        description: `${result.identifier} is now available in the pool`,
-      });
-      form.reset();
-      loadData();
-      loadStats();
-    } catch (err) {
-      toast.error("Upload failed", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setUploading(false);
-    }
-  }
+  const uploading = upload.isPending;
+  const revokingId = revoke.isPending ? revoke.variables : null;
 
   return (
     <div className="space-y-8">

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +15,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fetchUsers, type AdminUser } from "@/lib/api";
+import { fetchUserDetail, type UserListParams } from "@/lib/api";
 import { ResellerBadge } from "@/components/business-utils";
-import { Loader2, Search } from "lucide-react";
+import { DataTablePagination } from "@/components/data-table-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { useUsers } from "@/hooks/use-users";
+import { adminKeys } from "@/lib/query-keys";
+import { Loader2, Search, Inbox } from "lucide-react";
 
-type RoleFilter = "all" | "owner" | "admin" | "scanner";
+type RoleFilter = "all" | "owner" | "admin" | "scanner" | "reseller";
+
+const PAGE_SIZE = 25;
 
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, string> = {
@@ -35,60 +41,28 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [page, setPage] = useState(0);
 
-  const loadData = useCallback(async () => {
-    try {
-      const data = await fetchUsers();
-      setUsers(data);
-    } catch (err) {
-      toast.error("Failed to load users", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const params: UserListParams = {
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    search: search.trim() || undefined,
+    role: roleFilter === "all" ? undefined : roleFilter,
+  };
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data, isPending, isPlaceholderData } = useUsers(params);
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
 
-  const filtered = useMemo(() => {
-    let result = users;
-
-    if (roleFilter !== "all") {
-      result = result.filter((u) => u.roles.includes(roleFilter));
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (u) =>
-          u.name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q)
-      );
-    }
-
-    return result;
-  }, [users, roleFilter, search]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const roleCounts = {
-    all: users.length,
-    owner: users.filter((u) => u.roles.includes("owner")).length,
-    admin: users.filter((u) => u.roles.includes("admin")).length,
-    scanner: users.filter((u) => u.roles.includes("scanner")).length,
+  const resetPage = () => setPage(0);
+  const prefetchDetail = (id: string) => {
+    qc.prefetchQuery({
+      queryKey: adminKeys.users.detail(id),
+      queryFn: () => fetchUserDetail(id),
+    });
   };
 
   return (
@@ -96,7 +70,7 @@ export default function UsersPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Users</h1>
         <p className="text-muted-foreground">
-          {users.length} user{users.length !== 1 && "s"} on the platform.
+          {total} user{total !== 1 && "s"} on the platform.
         </p>
       </div>
 
@@ -107,38 +81,47 @@ export default function UsersPage() {
           <Input
             placeholder="Search by name or email..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              resetPage();
+            }}
             className="pl-9"
           />
         </div>
 
         <div className="flex gap-1">
-          {(["all", "owner", "admin", "scanner"] as const).map((r) => (
-            <Button
-              key={r}
-              variant={roleFilter === r ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRoleFilter(r)}
-              className="capitalize"
-            >
-              {r === "all" ? "All" : `${r}s`}
-              {roleCounts[r] > 0 && (
-                <span className="ml-1 text-xs opacity-70">
-                  {roleCounts[r]}
-                </span>
-              )}
-            </Button>
-          ))}
+          {(["all", "owner", "admin", "scanner", "reseller"] as const).map(
+            (r) => (
+              <Button
+                key={r}
+                variant={roleFilter === r ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setRoleFilter(r);
+                  resetPage();
+                }}
+                className="capitalize"
+              >
+                {r === "all" ? "All" : r}
+              </Button>
+            )
+          )}
         </div>
       </div>
 
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          {filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No users match your filters.
-            </p>
+          {isPending ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon={<Inbox className="h-6 w-6" />}
+              title="No users match your filters"
+              description="Try adjusting search or clearing filters."
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -150,11 +133,12 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((user) => (
+                {items.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <Link
                         href={`/users/${user.id}`}
+                        onMouseEnter={() => prefetchDetail(user.id)}
                         className="hover:underline"
                       >
                         <div className="font-medium">{user.name}</div>
@@ -190,6 +174,17 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {items.length > 0 && (
+            <div className="border-t">
+              <DataTablePagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={total}
+                onPageChange={setPage}
+                isPlaceholder={isPlaceholderData}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
