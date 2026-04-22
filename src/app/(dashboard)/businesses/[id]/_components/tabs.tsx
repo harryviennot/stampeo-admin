@@ -118,13 +118,25 @@ function InfoTab({ business }: { business: Business }) {
         )}
         <InfoRow
           label="Applied"
-          value={new Date(business.created_at).toLocaleDateString()}
+          value={new Date(business.created_at).toLocaleString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         />
         <InfoRow
           label="Activated"
           value={
             business.activated_at
-              ? new Date(business.activated_at).toLocaleDateString()
+              ? new Date(business.activated_at).toLocaleString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
               : "—"
           }
         />

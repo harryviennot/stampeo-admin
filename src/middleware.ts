@@ -4,8 +4,12 @@ import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
-    request: { headers: request.headers },
+    request: {
+      headers: request.headers,
+    },
   });
+
+  const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,39 +24,47 @@ export async function middleware(request: NextRequest) {
           response = NextResponse.next({
             request: { headers: request.headers },
           });
-          response.cookies.set({ name, value, ...options });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+            domain: cookieDomain,
+          });
         },
         remove(name: string, options: Record<string, unknown>) {
           request.cookies.set({ name, value: "", ...options });
           response = NextResponse.next({
             request: { headers: request.headers },
           });
-          response.cookies.set({ name, value: "", ...options });
+          response.cookies.set({
+            name,
+            value: "",
+            ...options,
+            domain: cookieDomain,
+          });
         },
       },
     }
   );
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  // Allow /login unauthenticated
-  if (request.nextUrl.pathname === "/login") {
-    // If already authenticated as superadmin, redirect to dashboard
-    if (user?.app_metadata?.is_superadmin) {
+  const isLoginPage = request.nextUrl.pathname === "/login";
+
+  if (isLoginPage) {
+    if (session?.user?.app_metadata?.is_superadmin) {
       return NextResponse.redirect(new URL("/", request.url));
     }
     return response;
   }
 
-  // Not authenticated → login
-  if (!user) {
+  if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Authenticated but not superadmin → login with error
-  if (!user.app_metadata?.is_superadmin) {
+  if (!session.user.app_metadata?.is_superadmin) {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       new URL("/login?error=unauthorized", request.url)

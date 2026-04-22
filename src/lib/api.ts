@@ -87,6 +87,7 @@ export interface Business {
   phone?: string | null;
   heard_from?: string | null;
   heard_from_other?: string | null;
+  has_active_design?: boolean;
 }
 
 export interface Paginated<T> {
@@ -109,6 +110,7 @@ export interface BusinessListParams {
     | "cancelled"
     | "grace"
     | "suspended";
+  has_active_design?: boolean;
 }
 
 export interface UserListParams {
