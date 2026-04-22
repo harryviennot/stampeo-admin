@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -22,6 +23,21 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      // Supabase emits SIGNED_OUT after an unrecoverable refresh failure.
+      // Also guard on TOKEN_REFRESHED without a session, which can happen
+      // when the refresh call errors out.
+      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+        router.replace("/login");
+      }
+    });
+    return () => {
+      data.subscription.unsubscribe();
+    };
+  }, [router]);
 
   async function handleSignOut() {
     const supabase = createClient();
