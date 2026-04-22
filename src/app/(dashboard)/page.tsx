@@ -107,6 +107,17 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Platform overview</p>
       </div>
 
+      {/* ── Leaderboards ── */}
+      <SectionHeader
+        title="Leaderboards"
+        description="Who's driving activity right now, who's most engaged per customer, and who are the all-time heavyweights."
+      />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TopBusinessesRollingCard />
+        <TopBusinessesDensityCard />
+      </div>
+      <TopBusinessesAllTimeCard />
+
       {/* ── Platform totals ── */}
       <SectionHeader
         title="Platform totals"
@@ -170,6 +181,49 @@ export default function DashboardPage() {
           badgeClass="bg-emerald-100 text-emerald-700"
           info="Unassigned Apple Pass Type IDs in the pool. Each new business design consumes one. If this hits 0, new signups can't issue wallet passes."
         />
+        {(() => {
+          if (!stats) {
+            return (
+              <StatCard
+                label="Cert Headroom"
+                value={undefined}
+                loading={statsPending}
+                icon={<ShieldCheck className="h-4 w-4" />}
+              />
+            );
+          }
+          const totalCerts = stats.certs_available + stats.certs_assigned;
+          const delta = totalCerts - stats.total_businesses;
+          const critical = delta <= 0;
+          const warning = !critical && delta <= 10;
+          const badgeClass = critical
+            ? "bg-red-100 text-red-700"
+            : warning
+              ? "bg-amber-100 text-amber-700"
+              : "bg-emerald-100 text-emerald-700";
+          return (
+            <StatCard
+              label="Cert Headroom"
+              value={delta}
+              loading={statsPending}
+              icon={<ShieldCheck className="h-4 w-4" />}
+              badgeClass={badgeClass}
+              info={
+                <>
+                  <p className="font-medium text-foreground">
+                    Pool size minus total businesses
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    ({totalCerts} total certs − {stats.total_businesses}{" "}
+                    businesses). Positive = room to onboard without provisioning
+                    more Pass Type IDs. Zero or negative = the pool is full and
+                    new signups will fail until certificates are added.
+                  </p>
+                </>
+              }
+            />
+          );
+        })()}
         <StatCard
           label="Total Rewards"
           value={stats?.total_rewards_redeemed}
@@ -375,17 +429,6 @@ export default function DashboardPage() {
         description="How well do broadcast pushes actually reach customers? Failure modes are broken out separately so you can spot platform-specific issues."
       />
       <BroadcastDeliverabilityChart />
-
-      {/* ── Leaderboards ── */}
-      <SectionHeader
-        title="Leaderboards"
-        description="Who's driving activity right now, who's most engaged per customer, and who are the all-time heavyweights."
-      />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopBusinessesRollingCard />
-        <TopBusinessesDensityCard />
-      </div>
-      <TopBusinessesAllTimeCard />
     </div>
   );
 }

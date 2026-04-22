@@ -78,8 +78,17 @@ const HEARD_FROM_COLORS: Record<string, string> = {
 
 type StatusFilter = "all" | "pending" | "active" | "suspended";
 type TierFilter = "all" | "starter" | "growth" | "pro";
+type DesignFilter = "all" | "active" | "none";
 
 const PAGE_SIZE = 25;
+
+const DATE_TIME_OPTS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+};
 
 export default function BusinessesPage() {
   return (
@@ -97,6 +106,7 @@ function BusinessesContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
+  const [designFilter, setDesignFilter] = useState<DesignFilter>("all");
   const [page, setPage] = useState(0);
 
   const params: BusinessListParams = {
@@ -105,6 +115,8 @@ function BusinessesContent() {
     search: search.trim() || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
     tier: tierFilter === "all" ? undefined : tierFilter,
+    has_active_design:
+      designFilter === "all" ? undefined : designFilter === "active",
   };
 
   const { data, isPending, isPlaceholderData } = useBusinesses(params);
@@ -154,8 +166,8 @@ function BusinessesContent() {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-wrap">
+        <div className="relative flex-1 min-w-[220px] lg:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by name, email, slug..."
@@ -168,7 +180,7 @@ function BusinessesContent() {
           />
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {(["all", "pending", "active", "suspended"] as const).map((s) => (
             <Button
               key={s}
@@ -185,7 +197,7 @@ function BusinessesContent() {
           ))}
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {(["all", "starter", "growth", "pro"] as const).map((t) => (
             <Button
               key={t}
@@ -198,6 +210,28 @@ function BusinessesContent() {
               className="capitalize"
             >
               {t}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1">
+          {(
+            [
+              { key: "all", label: "Card: all" },
+              { key: "active", label: "Card: active" },
+              { key: "none", label: "Card: none" },
+            ] as const
+          ).map(({ key, label }) => (
+            <Button
+              key={key}
+              variant={designFilter === key ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDesignFilter(key);
+                resetPage();
+              }}
+            >
+              {label}
             </Button>
           ))}
         </div>
@@ -333,10 +367,12 @@ function BusinessesContent() {
                       <TableCell>
                         <PlanBadge tier={biz.subscription_tier} />
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {biz.status === "active" && biz.activated_at
-                          ? new Date(biz.activated_at).toLocaleDateString()
-                          : new Date(biz.created_at).toLocaleDateString()}
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {new Date(
+                          biz.status === "active" && biz.activated_at
+                            ? biz.activated_at
+                            : biz.created_at
+                        ).toLocaleString(undefined, DATE_TIME_OPTS)}
                       </TableCell>
                       <TableCell>
                         {biz.status === "active" ? (
