@@ -11,12 +11,12 @@ import {
 import { useOnboardingFunnel } from "@/hooks/use-stats";
 
 const STEP_LABELS: Record<number, string> = {
-  1: "Business info",
-  2: "Type / category",
-  3: "Card design",
+  1: "Business profile",
+  2: "Card design",
+  3: "About you",
   4: "Account",
   5: "Plan",
-  6: "Done",
+  6: "Heard from",
 };
 
 const config: ChartConfig = {
@@ -53,8 +53,8 @@ export function OnboardingFunnelChart() {
         <>
           <p className="font-medium text-foreground">Post-auth signup drop-off</p>
           <p className="mt-1 text-muted-foreground">
-            Reconstructs the 6-step wizard (Business → Type → Design → Account →
-            Plan → Done) by combining abandoned{" "}
+            Reconstructs the 6-step wizard (Business profile → Card design →
+            About you → Account → Plan → Heard from) by combining abandoned{" "}
             <span className="font-medium">onboarding_progress</span> rows with
             completed signups in <span className="font-medium">businesses</span>.
             A bar turns red when ≥30% of the previous step drops.{" "}
@@ -67,9 +67,11 @@ export function OnboardingFunnelChart() {
             look identical and the top number is{" "}
             <span className="font-medium">authenticated users</span>, not page
             visitors. Pre-auth drop-off (steps 1–3 in sessionStorage) is
-            invisible here — use the showcase analytics for that. Step 6 is
-            never explicitly marked complete, so its count always equals{" "}
-            <span className="font-medium">completed signups</span>.
+            invisible here — use PostHog{" "}
+            <span className="font-medium">onboarding_step_completed</span>{" "}
+            for that. Wizard restructure shipped 2026-05-04: rows from before
+            then use the old step semantics (1=business info, 2=type), so
+            mixed-window comparisons will be misleading.
           </p>
         </>
       }
