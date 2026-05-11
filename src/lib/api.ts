@@ -790,3 +790,85 @@ export async function revokeReseller(userId: string, removeExistingDiscounts: bo
   );
   if (!res.ok) throw new Error(await res.text());
 }
+
+// ─── Impersonation access sessions ──────────────────────────────
+
+export interface AccessSessionRef {
+  id: string | null;
+  name?: string | null;
+  email?: string | null;
+  url_slug?: string | null;
+  logo_url?: string | null;
+}
+
+export interface AccessSession {
+  id: string;
+  business_id: string;
+  business: AccessSessionRef | null;
+  superadmin_user_id: string;
+  superadmin: AccessSessionRef | null;
+  target_user_id: string;
+  target: AccessSessionRef | null;
+  target_role: "owner" | "admin" | "scanner" | string;
+  selection_mode: "by_role" | "by_user" | string;
+  reason: string;
+  granted_at: string;
+  expires_at: string;
+  ended_at: string | null;
+  ended_reason: string | null;
+  event_count: number;
+  ip_address: string | null;
+  user_agent: string | null;
+}
+
+export interface AccessSessionEvent {
+  id: string;
+  action_type: string;
+  created_at: string;
+  metadata: Record<string, unknown>;
+  actor_user_id: string | null;
+  actor: AccessSessionRef | null;
+  impersonation_session_id: string | null;
+  business_id: string | null;
+  target_user_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+}
+
+export interface AccessSessionListParams {
+  limit?: number;
+  offset?: number;
+  business_id?: string;
+  superadmin_user_id?: string;
+  status?: "active" | "ended" | "expired";
+}
+
+export interface AccessSessionDetail {
+  session: AccessSession;
+  events: AccessSessionEvent[];
+}
+
+export async function fetchAccessSessions(
+  params: AccessSessionListParams = {}
+): Promise<Paginated<AccessSession>> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/impersonation/sessions${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchAccessSession(
+  sessionId: string
+): Promise<AccessSessionDetail> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/impersonation/sessions/${sessionId}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
