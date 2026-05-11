@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, History, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -110,7 +111,13 @@ export function BusinessHeader({ business }: { business: Business }) {
           </div>
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/businesses/${business.id}/access-sessions`}>
+              <History className="mr-1 h-3.5 w-3.5" />
+              Access log
+            </Link>
+          </Button>
           {business.status === "active" ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
