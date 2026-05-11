@@ -1,4 +1,5 @@
 import type {
+  AccessSessionListParams,
   BucketRangeParams,
   BusinessListParams,
   CustomerSignupsByBizParams,
@@ -51,5 +52,11 @@ export const adminKeys = {
   certs: {
     pool: ["certs", "pool"] as const,
     passTypeIds: ["certs", "passTypeIds"] as const,
+  },
+  accessSessions: {
+    all: ["accessSessions"] as const,
+    list: (p: AccessSessionListParams) =>
+      ["accessSessions", "list", p] as const,
+    detail: (id: string) => ["accessSessions", "detail", id] as const,
   },
 };
