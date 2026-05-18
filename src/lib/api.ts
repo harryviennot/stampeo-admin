@@ -49,11 +49,26 @@ export interface PassTypeId {
   created_at: string;
 }
 
+export type BusinessInfoEntryType =
+  | "phone"
+  | "website"
+  | "email"
+  | "address"
+  | "hours"
+  | "custom";
+
+export interface BusinessInfoEntry {
+  type: BusinessInfoEntryType;
+  key?: string;
+  label?: string;
+  data: Record<string, unknown>;
+}
+
 export interface Business {
   id: string;
   name: string;
   url_slug: string;
-  status: "pending" | "active" | "suspended";
+  status: "active" | "suspended";
   subscription_tier: string;
   logo_url: string | null;
   settings: {
@@ -67,6 +82,7 @@ export interface Business {
   owner_id: string | null;
   owner_name: string | null;
   owner_email: string | null;
+  owner_phone: string | null;
   owner_is_reseller: boolean;
   activated_at: string | null;
   created_at: string;
@@ -82,11 +98,14 @@ export interface Business {
   is_founding_partner?: boolean;
   trial_ends_at?: string | null;
   grace_ends_at?: string | null;
-  // Onboarding discovery fields (admin-only)
-  website?: string | null;
-  phone?: string | null;
+  // Onboarding survey + business contact (sourced from businesses.settings since migration 78)
+  identity_website?: string | null;
+  business_info?: BusinessInfoEntry[];
   heard_from?: string | null;
   heard_from_other?: string | null;
+  team_size?: string | null;
+  locations_count?: string | null;
+  primary_goal?: string | null;
   has_active_design?: boolean;
 }
 
@@ -101,7 +120,7 @@ export interface BusinessListParams {
   limit?: number;
   offset?: number;
   search?: string;
-  status?: "pending" | "active" | "suspended";
+  status?: "active" | "suspended";
   tier?: "starter" | "growth" | "pro";
   billing_status?:
     | "trial"
@@ -346,6 +365,51 @@ export async function uploadCertificate(
 export async function fetchHeardFromStats(): Promise<HeardFromStat[]> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/heard-from-stats`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface SetupWizardFunnelStep {
+  chapter: string;
+  step: string;
+  reached: number;
+}
+
+export interface SetupWizardFunnelResponse {
+  started: number;
+  completed: number;
+  steps: SetupWizardFunnelStep[];
+}
+
+export async function fetchSetupWizardFunnel(
+  params: RangeParams = {}
+): Promise<SetupWizardFunnelResponse> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/setup-wizard-funnel${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface OnboardingBreakdownBucket {
+  value: string;
+  count: number;
+}
+
+export interface OnboardingBreakdownsResponse {
+  team_size: OnboardingBreakdownBucket[];
+  locations_count: OnboardingBreakdownBucket[];
+  primary_goal: OnboardingBreakdownBucket[];
+}
+
+export async function fetchOnboardingBreakdowns(): Promise<OnboardingBreakdownsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/stats/onboarding-breakdowns`, {
+    headers,
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

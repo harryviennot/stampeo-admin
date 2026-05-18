@@ -42,7 +42,7 @@ import {
   useBusinesses,
   useSuspendBusiness,
 } from "@/hooks/use-businesses";
-import { useHeardFromStats } from "@/hooks/use-stats";
+import { useHeardFromStats, useOnboardingBreakdowns } from "@/hooks/use-stats";
 import { adminKeys } from "@/lib/query-keys";
 import { Loader2, Search, Inbox } from "lucide-react";
 import {
@@ -76,7 +76,41 @@ const HEARD_FROM_COLORS: Record<string, string> = {
   other: "#6B7280",
 };
 
-type StatusFilter = "all" | "pending" | "active" | "suspended";
+type StatusFilter = "all" | "active" | "suspended";
+
+const TEAM_SIZE_LABELS: Record<string, string> = {
+  solo: "Solo",
+  small: "Small (2–5)",
+  medium: "Medium (6–20)",
+  large: "Large (20+)",
+  "2-5": "2–5",
+};
+
+const LOCATIONS_LABELS: Record<string, string> = {
+  one: "1 location",
+  few: "2–5 locations",
+  several: "6–20 locations",
+  many: "20+ locations",
+  "1": "1 location",
+  "2-5": "2–5 locations",
+};
+
+const PRIMARY_GOAL_LABELS: Record<string, string> = {
+  retention: "Retention",
+  frequency: "Frequency",
+  basket: "Bigger baskets",
+  acquisition: "Acquisition",
+  retain: "Retention",
+};
+
+const BREAKDOWN_PALETTE = [
+  "#6366F1",
+  "#10B981",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
+  "#0EA5E9",
+];
 type TierFilter = "all" | "starter" | "growth" | "pro";
 type DesignFilter = "all" | "active" | "none";
 
@@ -121,6 +155,7 @@ function BusinessesContent() {
 
   const { data, isPending, isPlaceholderData } = useBusinesses(params);
   const { data: heardFromStats } = useHeardFromStats();
+  const { data: breakdowns } = useOnboardingBreakdowns();
   const activate = useActivateBusiness();
   const suspend = useSuspendBusiness();
 
@@ -181,7 +216,7 @@ function BusinessesContent() {
         </div>
 
         <div className="flex flex-wrap gap-1">
-          {(["all", "pending", "active", "suspended"] as const).map((s) => (
+          {(["all", "active", "suspended"] as const).map((s) => (
             <Button
               key={s}
               variant={statusFilter === s ? "default" : "outline"}
@@ -237,44 +272,54 @@ function BusinessesContent() {
         </div>
       </div>
 
-      {/* Heard From Pie Chart */}
-      {heardFromStats && heardFromStats.length > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <h3 className="text-sm font-semibold mb-4">
-              Where are businesses hearing about us?
-            </h3>
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={heardFromStats.map((s) => ({
-                      name: HEARD_FROM_LABELS[s.source] || s.source,
-                      value: s.count,
-                      source: s.source,
-                    }))}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {heardFromStats.map((s) => (
-                      <Cell
-                        key={s.source}
-                        fill={HEARD_FROM_COLORS[s.source] || "#6B7280"}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${value}`, "Businesses"]} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Onboarding survey snapshot — four pies across one row on wide screens. */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {heardFromStats && heardFromStats.length > 0 && (
+          <BreakdownPie
+            title="Where they heard about us"
+            data={heardFromStats.map((s) => ({
+              key: s.source,
+              name: HEARD_FROM_LABELS[s.source] || s.source,
+              value: s.count,
+              fill: HEARD_FROM_COLORS[s.source] || "#6B7280",
+            }))}
+          />
+        )}
+        {breakdowns?.team_size && breakdowns.team_size.length > 0 && (
+          <BreakdownPie
+            title="Team size"
+            data={breakdowns.team_size.map((b, i) => ({
+              key: b.value,
+              name: TEAM_SIZE_LABELS[b.value] || b.value,
+              value: b.count,
+              fill: BREAKDOWN_PALETTE[i % BREAKDOWN_PALETTE.length],
+            }))}
+          />
+        )}
+        {breakdowns?.locations_count &&
+          breakdowns.locations_count.length > 0 && (
+            <BreakdownPie
+              title="Locations"
+              data={breakdowns.locations_count.map((b, i) => ({
+                key: b.value,
+                name: LOCATIONS_LABELS[b.value] || b.value,
+                value: b.count,
+                fill: BREAKDOWN_PALETTE[i % BREAKDOWN_PALETTE.length],
+              }))}
+            />
+          )}
+        {breakdowns?.primary_goal && breakdowns.primary_goal.length > 0 && (
+          <BreakdownPie
+            title="Primary goal"
+            data={breakdowns.primary_goal.map((b, i) => ({
+              key: b.value,
+              name: PRIMARY_GOAL_LABELS[b.value] || b.value,
+              value: b.count,
+              fill: BREAKDOWN_PALETTE[i % BREAKDOWN_PALETTE.length],
+            }))}
+          />
+        )}
+      </div>
 
       {/* Table */}
       <Card>
@@ -422,9 +467,7 @@ function BusinessesContent() {
                             {busy && (
                               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                             )}
-                            {biz.status === "pending"
-                              ? "Approve"
-                              : "Reactivate"}
+                            Reactivate
                           </Button>
                         )}
                       </TableCell>
@@ -448,5 +491,55 @@ function BusinessesContent() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+interface BreakdownDatum {
+  key: string;
+  name: string;
+  value: number;
+  fill: string;
+}
+
+function BreakdownPie({
+  title,
+  data,
+}: {
+  title: string;
+  data: BreakdownDatum[];
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <h3 className="text-sm font-semibold mb-3">{title}</h3>
+        <div className="h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {data.map((d) => (
+                  <Cell key={d.key} fill={d.fill} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => [`${value}`, "Businesses"]} />
+              <Legend
+                wrapperStyle={{ fontSize: 11 }}
+                iconSize={8}
+                formatter={(v) => (
+                  <span className="text-muted-foreground">{v}</span>
+                )}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

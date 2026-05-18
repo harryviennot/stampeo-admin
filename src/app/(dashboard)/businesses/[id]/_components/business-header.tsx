@@ -26,7 +26,6 @@ import {
 } from "@/components/business-utils";
 import {
   useActivateBusiness,
-  useDeleteBusiness,
   useSuspendBusiness,
 } from "@/hooks/use-businesses";
 import type { Business } from "@/lib/api";
@@ -35,9 +34,8 @@ export function BusinessHeader({ business }: { business: Business }) {
   const router = useRouter();
   const activate = useActivateBusiness();
   const suspend = useSuspendBusiness();
-  const remove = useDeleteBusiness();
 
-  const busy = activate.isPending || suspend.isPending || remove.isPending;
+  const busy = activate.isPending || suspend.isPending;
 
   const handleActivate = () =>
     activate.mutate(business.id, {
@@ -53,18 +51,6 @@ export function BusinessHeader({ business }: { business: Business }) {
       onSuccess: () => toast.success("Business suspended"),
       onError: (err) =>
         toast.error("Failed to suspend", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        }),
-    });
-
-  const handleDeny = () =>
-    remove.mutate(business.id, {
-      onSuccess: () => {
-        toast.success("Application denied and business deleted");
-        router.push("/businesses");
-      },
-      onError: (err) =>
-        toast.error("Failed to deny application", {
           description: err instanceof Error ? err.message : "Unknown error",
         }),
     });
@@ -150,48 +136,6 @@ export function BusinessHeader({ business }: { business: Business }) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          ) : business.status === "pending" ? (
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                className="bg-green-600 hover:bg-green-700"
-                disabled={busy}
-                onClick={handleActivate}
-              >
-                {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                Accept
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-50"
-                    disabled={busy}
-                  >
-                    Deny
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Deny application?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete &quot;{business.name}
-                      &quot; and all associated data. This cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-red-600 hover:bg-red-700"
-                      onClick={handleDeny}
-                    >
-                      Deny &amp; Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
           ) : (
             <Button
               size="sm"
