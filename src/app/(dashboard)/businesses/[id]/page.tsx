@@ -10,6 +10,7 @@ import { StatsRow } from "./_components/stats-row";
 import { ChartsRow } from "./_components/charts-row";
 import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
 import { ActivityBadge } from "./_components/activity-badge";
+import { OnboardingProgressCard } from "./_components/onboarding-progress-card";
 import { BusinessTabs } from "./_components/tabs";
 
 export default function BusinessDetailPage() {
@@ -45,6 +46,7 @@ export default function BusinessDetailPage() {
       <StatsRow businessId={business.id} />
       <ChartsRow businessId={business.id} />
       <PassLifecycleChart businessId={business.id} />
+      <OnboardingProgressCard business={business} />
       <BusinessTabs business={business} />
     </div>
   );
