@@ -9,8 +9,10 @@ import {
   fetchGlobalStats,
   fetchHeardFromStats,
   fetchInactiveSnapshot,
+  fetchOnboardingBreakdowns,
   fetchOnboardingFunnel,
   fetchPassLifecycle,
+  fetchSetupWizardFunnel,
   fetchStampHeatmap,
   fetchTimeseries,
   fetchTopBusinesses,
@@ -75,10 +77,24 @@ export function useHeardFromStats() {
   });
 }
 
+export function useOnboardingBreakdowns() {
+  return useQuery({
+    queryKey: adminKeys.stats.onboardingBreakdowns,
+    queryFn: fetchOnboardingBreakdowns,
+  });
+}
+
 export function useOnboardingFunnel(params: RangeParams = {}) {
   return useQuery({
     queryKey: adminKeys.stats.onboardingFunnel(params),
     queryFn: () => fetchOnboardingFunnel(params),
+  });
+}
+
+export function useSetupWizardFunnel(params: RangeParams = {}) {
+  return useQuery({
+    queryKey: adminKeys.stats.setupWizardFunnel(params),
+    queryFn: () => fetchSetupWizardFunnel(params),
   });
 }
 

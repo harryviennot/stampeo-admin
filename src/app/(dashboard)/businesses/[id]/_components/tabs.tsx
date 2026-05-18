@@ -48,6 +48,65 @@ const HEARD_FROM_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+const TEAM_SIZE_LABELS: Record<string, string> = {
+  solo: "Solo",
+  small: "Small (2–5)",
+  medium: "Medium (6–20)",
+  large: "Large (20+)",
+  "2-5": "2–5",
+};
+
+const LOCATIONS_LABELS: Record<string, string> = {
+  one: "1 location",
+  few: "2–5 locations",
+  several: "6–20 locations",
+  many: "20+ locations",
+  "1": "1 location",
+  "2-5": "2–5 locations",
+};
+
+const PRIMARY_GOAL_LABELS: Record<string, string> = {
+  retention: "Retention",
+  frequency: "Frequency",
+  basket: "Bigger baskets",
+  acquisition: "Acquisition",
+  retain: "Retention",
+};
+
+function formatBusinessInfoEntry(entry: {
+  type: string;
+  data: Record<string, unknown>;
+  label?: string;
+}): { label: string; value: string } | null {
+  const data = entry.data ?? {};
+  switch (entry.type) {
+    case "phone":
+      return data.number
+        ? { label: "Business phone", value: String(data.number) }
+        : null;
+    case "website":
+      return data.url
+        ? { label: "Business website", value: String(data.url) }
+        : null;
+    case "email":
+      return data.email
+        ? { label: "Business email", value: String(data.email) }
+        : null;
+    case "address":
+      return data.address
+        ? { label: "Address", value: String(data.address) }
+        : null;
+    case "hours":
+      return { label: "Hours", value: "(set)" };
+    case "custom":
+      return data.label && data.value
+        ? { label: String(data.label), value: String(data.value) }
+        : null;
+    default:
+      return null;
+  }
+}
+
 type TabKey = "info" | "design" | "certificate" | "team" | "actions";
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -152,26 +211,39 @@ function InfoTab({ business }: { business: Business }) {
             value={new Date(business.grace_ends_at).toLocaleDateString()}
           />
         )}
-        {business.website && (
+        {business.owner_phone && (
+          <InfoRow label="Owner phone" value={business.owner_phone} />
+        )}
+        {business.identity_website && (
           <InfoRow
-            label="Website"
+            label="Loyalty-card website"
             value={
               <a
                 href={
-                  business.website.startsWith("http")
-                    ? business.website
-                    : `https://${business.website}`
+                  business.identity_website.startsWith("http")
+                    ? business.identity_website
+                    : `https://${business.identity_website}`
                 }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline"
               >
-                {business.website}
+                {business.identity_website}
               </a>
             }
           />
         )}
-        {business.phone && <InfoRow label="Phone" value={business.phone} />}
+        {(business.business_info ?? []).map((entry, idx) => {
+          const formatted = formatBusinessInfoEntry(entry);
+          if (!formatted) return null;
+          return (
+            <InfoRow
+              key={`${entry.type}-${idx}`}
+              label={formatted.label}
+              value={formatted.value}
+            />
+          );
+        })}
         {business.heard_from && (
           <InfoRow
             label="Heard From"
@@ -179,6 +251,30 @@ function InfoTab({ business }: { business: Business }) {
               business.heard_from === "other" && business.heard_from_other
                 ? `Other: ${business.heard_from_other}`
                 : HEARD_FROM_LABELS[business.heard_from] || business.heard_from
+            }
+          />
+        )}
+        {business.team_size && (
+          <InfoRow
+            label="Team size"
+            value={TEAM_SIZE_LABELS[business.team_size] || business.team_size}
+          />
+        )}
+        {business.locations_count && (
+          <InfoRow
+            label="Locations"
+            value={
+              LOCATIONS_LABELS[business.locations_count] ||
+              business.locations_count
+            }
+          />
+        )}
+        {business.primary_goal && (
+          <InfoRow
+            label="Primary goal"
+            value={
+              PRIMARY_GOAL_LABELS[business.primary_goal] ||
+              business.primary_goal
             }
           />
         )}

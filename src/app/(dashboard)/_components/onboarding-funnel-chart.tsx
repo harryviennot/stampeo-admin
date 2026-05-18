@@ -16,7 +16,7 @@ const STEP_LABELS: Record<number, string> = {
   3: "About you",
   4: "Account",
   5: "Plan",
-  6: "Heard from",
+  6: "Confirmation",
 };
 
 const config: ChartConfig = {
@@ -54,11 +54,18 @@ export function OnboardingFunnelChart() {
           <p className="font-medium text-foreground">Post-auth signup drop-off</p>
           <p className="mt-1 text-muted-foreground">
             Reconstructs the 6-step wizard (Business profile → Card design →
-            About you → Account → Plan → Heard from) by combining abandoned{" "}
+            About you → Account → Plan → Confirmation) by combining abandoned{" "}
             <span className="font-medium">onboarding_progress</span> rows with
             completed signups in <span className="font-medium">businesses</span>.
             A bar turns red when ≥30% of the previous step drops.{" "}
-            <span className="font-medium">Shorter = leakier.</span>
+            <span className="font-medium">Shorter = leakier.</span> Step 3
+            (&ldquo;About you&rdquo;) now also captures{" "}
+            <span className="font-medium">team_size</span>,{" "}
+            <span className="font-medium">locations_count</span>,{" "}
+            <span className="font-medium">primary_goal</span> and{" "}
+            <span className="font-medium">heard_from</span>. Step 6 is the
+            confirmation/success screen — the legacy &ldquo;Heard from&rdquo;
+            step moved into step 3.
           </p>
           <p className="mt-2 text-muted-foreground">
             <span className="font-medium text-foreground">Caveat:</span>{" "}
