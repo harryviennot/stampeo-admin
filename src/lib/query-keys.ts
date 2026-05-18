@@ -62,4 +62,9 @@ export const adminKeys = {
       ["accessSessions", "list", p] as const,
     detail: (id: string) => ["accessSessions", "detail", id] as const,
   },
+  emails: {
+    list: ["emails", "list"] as const,
+    preview: (category: string, name: string, locale: "fr" | "en") =>
+      ["emails", "preview", category, name, locale] as const,
+  },
 };

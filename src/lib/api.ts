@@ -936,3 +936,32 @@ export async function fetchAccessSession(
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+// ─── Email template previews ────────────────────────────────────
+
+export interface EmailTemplateRef {
+  category: "transactional" | "lifecycle" | "campaigns" | string;
+  name: string;
+}
+
+export async function fetchEmailTemplates(): Promise<EmailTemplateRef[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/emails/list`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/** Returns raw rendered HTML — write it into an iframe via `srcdoc`. */
+export async function fetchEmailPreviewHtml(
+  category: string,
+  name: string,
+  locale: "fr" | "en"
+): Promise<string> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/emails/${category}/${name}?locale=${locale}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.text();
+}
