@@ -107,6 +107,21 @@ export interface Business {
   locations_count?: string | null;
   primary_goal?: string | null;
   has_active_design?: boolean;
+  // Post-signup setup-wizard progress (settings.setup_progress)
+  setup_progress?: SetupProgress | null;
+}
+
+export interface SetupProgressStep {
+  chapter: string;
+  step: string;
+}
+
+export interface SetupProgress {
+  started_at: string | null;
+  completed_at: string | null;
+  last_step: SetupProgressStep | null;
+  completed: SetupProgressStep[];
+  skipped: SetupProgressStep[];
 }
 
 export interface Paginated<T> {
