@@ -5,7 +5,7 @@ import { InfoTooltip } from "@/components/info-tooltip";
 
 interface StatCardProps {
   label: string;
-  value: number | undefined;
+  value: number | string | undefined;
   loading: boolean;
   icon: React.ReactNode;
   badgeClass?: string;

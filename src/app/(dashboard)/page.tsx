@@ -1,27 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowRight,
   Building2,
   CircleDot,
-  Clock,
   Crown,
   Ghost,
   Gift,
   ShieldCheck,
   Skull,
+  TrendingUp,
   Users,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { ChartCard } from "@/components/chart-card";
 import {
   useBillingBreakdown,
   useGlobalStats,
   useInactiveSnapshot,
+  useOnboardingFunnel,
 } from "@/hooks/use-stats";
 import { Cell, Pie, PieChart } from "recharts";
 import {
@@ -35,6 +32,7 @@ import { BusinessSignupsChart } from "./_components/business-signups-chart";
 import { CustomerSignupsChart } from "./_components/customer-signups-chart";
 import { OnboardingFunnelChart } from "./_components/onboarding-funnel-chart";
 import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
+import { SetupWizardFunnelChart } from "./_components/setup-wizard-funnel-chart";
 import { StampHeatmapCard } from "./_components/stamp-heatmap-card";
 import { StampsChart } from "./_components/stamps-chart";
 import {
@@ -66,6 +64,24 @@ export default function DashboardPage() {
   const { data: stats, isPending: statsPending } = useGlobalStats();
   const { data: billing, isPending: billingPending } = useBillingBreakdown();
   const { data: inactive, isPending: inactivePending } = useInactiveSnapshot();
+  const { data: funnel, isPending: funnelPending } = useOnboardingFunnel({
+    range: "90d",
+  });
+
+  const completionRate = (() => {
+    if (!funnel) return null;
+    const denom = funnel.completed + funnel.abandoned;
+    if (denom === 0) return null;
+    return Math.round((funnel.completed / denom) * 100);
+  })();
+  const completionBadgeClass =
+    completionRate === null
+      ? undefined
+      : completionRate >= 60
+        ? "bg-emerald-100 text-emerald-700"
+        : completionRate >= 40
+          ? "bg-amber-100 text-amber-700"
+          : "bg-red-100 text-red-700";
 
   const zombiePct =
     inactive && inactive.total_customers > 0
@@ -162,16 +178,26 @@ export default function DashboardPage() {
           info="Every stamp_added transaction ever recorded. Trend compares this month vs last month — the primary gauge of platform usage."
         />
         <StatCard
-          label="Pending Applications"
-          value={stats?.pending_businesses}
-          loading={statsPending}
-          icon={<Clock className="h-4 w-4" />}
-          badgeClass={
-            stats && stats.pending_businesses > 0
-              ? "bg-amber-100 text-amber-700"
-              : undefined
+          label="Funnel Completion Rate"
+          value={completionRate === null ? "—" : `${completionRate}%`}
+          loading={funnelPending}
+          icon={<TrendingUp className="h-4 w-4" />}
+          badgeClass={completionBadgeClass}
+          info={
+            <>
+              <p className="font-medium text-foreground">
+                Authenticated wizard starters who completed signup (last 90d)
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                <span className="font-medium">completed ÷ (completed + abandoned)</span>{" "}
+                across the post-auth onboarding wizard. Pre-auth drop-off
+                (steps 1–3) is invisible here — see PostHog{" "}
+                <span className="font-medium">onboarding_step_completed</span>{" "}
+                for that.{" "}
+                <span className="font-medium">Higher is better.</span>
+              </p>
+            </>
           }
-          info="Businesses with status = 'pending' awaiting approval. Since the open-funnel rollout this should usually be 0 — a non-zero value means a business was explicitly held for review."
         />
         <StatCard
           label="Certificates Available"
@@ -280,34 +306,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Pending alert */}
-      {stats && stats.pending_businesses > 0 && (
-        <Card className="border-amber-200 bg-amber-50/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-amber-800">
-              <Clock className="h-4 w-4" />
-              Pending Applications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between gap-4">
-            <p className="text-sm text-amber-700">
-              {stats.pending_businesses} business
-              {stats.pending_businesses !== 1 ? "es" : ""} waiting for approval.
-            </p>
-            <Link href="/businesses?status=pending">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-amber-300 text-amber-800 hover:bg-amber-100"
-              >
-                Review applications
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
       {/* ── Growth ── */}
       <SectionHeader
         title="Growth"
@@ -328,6 +326,7 @@ export default function DashboardPage() {
         <OnboardingFunnelChart />
         <ActivationFunnelChart />
       </div>
+      <SetupWizardFunnelChart />
 
       {/* ── Retention & engagement ── */}
       <SectionHeader

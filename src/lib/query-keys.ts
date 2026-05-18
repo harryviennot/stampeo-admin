@@ -20,8 +20,11 @@ export const adminKeys = {
     customerSignupsByBiz: (p: CustomerSignupsByBizParams) =>
       ["stats", "customer-signups-by-biz", p] as const,
     heardFrom: ["stats", "heard-from"] as const,
+    onboardingBreakdowns: ["stats", "onboarding-breakdowns"] as const,
     onboardingFunnel: (p: RangeParams) =>
       ["stats", "onboarding-funnel", p] as const,
+    setupWizardFunnel: (p: RangeParams) =>
+      ["stats", "setup-wizard-funnel", p] as const,
     activationFunnel: (p: RangeParams) =>
       ["stats", "activation-funnel", p] as const,
     inactiveSnapshot: ["stats", "inactive-snapshot"] as const,
