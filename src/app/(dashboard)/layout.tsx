@@ -15,6 +15,7 @@ const navLinks = [
   { href: "/access-sessions", label: "Access Sessions" },
   { href: "/users", label: "Users" },
   { href: "/certificates", label: "Certificates" },
+  { href: "/emails", label: "Emails" },
 ];
 
 function isActive(pathname: string, href: string) {
