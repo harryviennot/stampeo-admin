@@ -109,7 +109,30 @@ export interface Business {
   has_active_design?: boolean;
   // Post-signup setup-wizard progress (settings.setup_progress)
   setup_progress?: SetupProgress | null;
+  // Per-row aggregates returned by the enriched-businesses RPC
+  stamps_total?: number;
+  stamps_30d?: number;
+  stamps_7d?: number;
+  customers_total?: number;
+  last_activity_at?: string | null;
 }
+
+export type BusinessSortBy =
+  | "created_at"
+  | "activated_at"
+  | "name"
+  | "stamps_total"
+  | "customers_total"
+  | "last_activity_at"
+  | "trial_ends_at";
+
+export type BusinessSortDir = "asc" | "desc";
+
+export type BusinessActivityFilter =
+  | "active_7d"
+  | "active_30d"
+  | "dormant_30d"
+  | "zombie";
 
 export interface SetupProgressStep {
   chapter: string;
@@ -145,6 +168,13 @@ export interface BusinessListParams {
     | "grace"
     | "suspended";
   has_active_design?: boolean;
+  is_founding_partner?: boolean;
+  owner_is_reseller?: boolean;
+  category?: string;
+  activity?: BusinessActivityFilter;
+  trial_ending_days?: number;
+  sort_by?: BusinessSortBy;
+  sort_dir?: BusinessSortDir;
 }
 
 export interface UserListParams {
@@ -788,6 +818,67 @@ export async function fetchTopBusinessesDensity(
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${API_BASE_URL}/admin/stats/top-businesses-density?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface SubscriptionInvoice {
+  id: string;
+  number: string | null;
+  status: string | null;
+  amount_due: number | null;
+  amount_paid: number | null;
+  amount_remaining: number | null;
+  currency: string | null;
+  created: number | null;
+  paid_at: number | null;
+  period_start: number | null;
+  period_end: number | null;
+  price_id: string | null;
+  price_nickname: string | null;
+  hosted_invoice_url: string | null;
+  invoice_pdf: string | null;
+}
+
+export interface SubscriptionTierChange {
+  id: string;
+  created: number | null;
+  new_price_id: string | null;
+  old_price_id: string | null;
+  new_tier: string | null;
+  old_tier: string | null;
+}
+
+export interface BusinessSubscription {
+  business_id: string;
+  subscription_tier: string | null;
+  billing_status: Business["billing_status"] | null;
+  is_founding_partner: boolean;
+  trial_ends_at: string | null;
+  grace_ends_at: string | null;
+  billing_period_end: string | null;
+  cancelled_at: string | null;
+  reseller_discount_applied: number | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
+  current_price_meta: { tier: string; kind: "public" | "founding" } | null;
+  total_paid: number;
+  total_paid_currency: string;
+  paid_invoice_count: number;
+  invoices: SubscriptionInvoice[];
+  tier_changes: SubscriptionTierChange[];
+  stripe_error: string | null;
+}
+
+export async function fetchBusinessSubscription(
+  id: string
+): Promise<BusinessSubscription> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${id}/subscription`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());

@@ -27,7 +27,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { fetchBusinessDetail, type BusinessListParams } from "@/lib/api";
+import {
+  fetchBusinessDetail,
+  type BusinessActivityFilter,
+  type BusinessListParams,
+  type BusinessSortBy,
+  type BusinessSortDir,
+} from "@/lib/api";
 import {
   BusinessInitials,
   BillingStatusBadge,
@@ -44,7 +50,22 @@ import {
 } from "@/hooks/use-businesses";
 import { useHeardFromStats, useOnboardingBreakdowns } from "@/hooks/use-stats";
 import { adminKeys } from "@/lib/query-keys";
-import { Loader2, Search, Inbox } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  Filter as FilterIcon,
+  Inbox,
+  Loader2,
+  Search,
+  X,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   PieChart,
   Pie,
@@ -77,6 +98,93 @@ const HEARD_FROM_COLORS: Record<string, string> = {
 };
 
 type StatusFilter = "all" | "active" | "suspended";
+type BillingFilter =
+  | "all"
+  | "trial"
+  | "active"
+  | "grace"
+  | "past_due"
+  | "cancelled"
+  | "suspended";
+type FoundingFilter = "all" | "yes" | "no";
+type ResellerFilter = "all" | "yes" | "no";
+type ActivityFilter = "all" | BusinessActivityFilter;
+type TrialEndingFilter = "all" | "7" | "14" | "0";
+
+interface FilterState {
+  status: StatusFilter;
+  tier: TierFilter;
+  billing: BillingFilter;
+  design: DesignFilter;
+  founding: FoundingFilter;
+  reseller: ResellerFilter;
+  activity: ActivityFilter;
+  trialEnding: TrialEndingFilter;
+}
+
+const DEFAULT_FILTERS: FilterState = {
+  status: "all",
+  tier: "all",
+  billing: "all",
+  design: "all",
+  founding: "all",
+  reseller: "all",
+  activity: "all",
+  trialEnding: "all",
+};
+
+interface SortOption {
+  key: string;
+  label: string;
+  by: BusinessSortBy;
+  dir: BusinessSortDir;
+}
+
+const SORT_OPTIONS: SortOption[] = [
+  { key: "newest",         label: "Newest first",            by: "created_at",       dir: "desc" },
+  { key: "oldest",         label: "Oldest first",            by: "created_at",       dir: "asc"  },
+  { key: "name_asc",       label: "Name A → Z",              by: "name",             dir: "asc"  },
+  { key: "name_desc",      label: "Name Z → A",              by: "name",             dir: "desc" },
+  { key: "customers_desc", label: "Most customers",          by: "customers_total",  dir: "desc" },
+  { key: "stamps_desc",    label: "Most stamps (all-time)",  by: "stamps_total",     dir: "desc" },
+  { key: "active_desc",    label: "Most recently active",    by: "last_activity_at", dir: "desc" },
+  { key: "active_asc",     label: "Inactive longest",        by: "last_activity_at", dir: "asc"  },
+  { key: "trial_asc",      label: "Trial ending soonest",    by: "trial_ends_at",    dir: "asc"  },
+];
+
+const DEFAULT_SORT_KEY = "newest";
+
+const BILLING_LABELS: Record<BillingFilter, string> = {
+  all: "All",
+  trial: "Trial",
+  active: "Active",
+  grace: "Grace",
+  past_due: "Past due",
+  cancelled: "Cancelled",
+  suspended: "Suspended",
+};
+
+const ACTIVITY_LABELS: Record<ActivityFilter, string> = {
+  all: "All",
+  active_7d: "Active (7d)",
+  active_30d: "Active (30d)",
+  dormant_30d: "Dormant 30d+",
+  zombie: "Zombie (no customers)",
+};
+
+const TRIAL_LABELS: Record<TrialEndingFilter, string> = {
+  all: "All",
+  "7": "Trial ends ≤ 7d",
+  "14": "Trial ends ≤ 14d",
+  "0": "Trial expired",
+};
+
+function countActiveFilters(f: FilterState): number {
+  return (Object.keys(f) as (keyof FilterState)[]).reduce(
+    (n, k) => (f[k] !== DEFAULT_FILTERS[k] ? n + 1 : n),
+    0
+  );
+}
 
 const TEAM_SIZE_LABELS: Record<string, string> = {
   solo: "Solo",
@@ -138,19 +246,42 @@ function BusinessesContent() {
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
-  const [tierFilter, setTierFilter] = useState<TierFilter>("all");
-  const [designFilter, setDesignFilter] = useState<DesignFilter>("all");
+  const [filters, setFilters] = useState<FilterState>({
+    ...DEFAULT_FILTERS,
+    status: initialStatus,
+  });
+  const [sortKey, setSortKey] = useState<string>(DEFAULT_SORT_KEY);
   const [page, setPage] = useState(0);
+
+  const sort =
+    SORT_OPTIONS.find((s) => s.key === sortKey) ?? SORT_OPTIONS[0];
 
   const params: BusinessListParams = {
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
     search: search.trim() || undefined,
-    status: statusFilter === "all" ? undefined : statusFilter,
-    tier: tierFilter === "all" ? undefined : tierFilter,
+    status: filters.status === "all" ? undefined : filters.status,
+    tier: filters.tier === "all" ? undefined : filters.tier,
+    billing_status: filters.billing === "all" ? undefined : filters.billing,
     has_active_design:
-      designFilter === "all" ? undefined : designFilter === "active",
+      filters.design === "all" ? undefined : filters.design === "active",
+    is_founding_partner:
+      filters.founding === "all" ? undefined : filters.founding === "yes",
+    owner_is_reseller:
+      filters.reseller === "all" ? undefined : filters.reseller === "yes",
+    activity: filters.activity === "all" ? undefined : filters.activity,
+    trial_ending_days:
+      filters.trialEnding === "all" ? undefined : Number(filters.trialEnding),
+    sort_by: sort.by,
+    sort_dir: sort.dir,
+  };
+
+  const resetPageOnFilterChange = <K extends keyof FilterState>(
+    key: K,
+    value: FilterState[K]
+  ) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(0);
   };
 
   const { data, isPending, isPlaceholderData } = useBusinesses(params);
@@ -200,76 +331,31 @@ function BusinessesContent() {
         </p>
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-wrap">
-        <div className="relative flex-1 min-w-[220px] lg:max-w-sm">
+      {/* Search + Filter/Sort */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="relative flex-1 min-w-[220px] lg:max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by name, email, slug..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              resetPage();
+              setPage(0);
             }}
             className="pl-9"
           />
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          {(["all", "active", "suspended"] as const).map((s) => (
-            <Button
-              key={s}
-              variant={statusFilter === s ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setStatusFilter(s);
-                resetPage();
-              }}
-              className="capitalize"
-            >
-              {s}
-            </Button>
-          ))}
-        </div>
+        <FilterMenu
+          filters={filters}
+          onChange={resetPageOnFilterChange}
+          onClear={() => {
+            setFilters(DEFAULT_FILTERS);
+            setPage(0);
+          }}
+        />
 
-        <div className="flex flex-wrap gap-1">
-          {(["all", "starter", "growth", "pro"] as const).map((t) => (
-            <Button
-              key={t}
-              variant={tierFilter === t ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setTierFilter(t);
-                resetPage();
-              }}
-              className="capitalize"
-            >
-              {t}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap gap-1">
-          {(
-            [
-              { key: "all", label: "Card: all" },
-              { key: "active", label: "Card: active" },
-              { key: "none", label: "Card: none" },
-            ] as const
-          ).map(({ key, label }) => (
-            <Button
-              key={key}
-              variant={designFilter === key ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDesignFilter(key);
-                resetPage();
-              }}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
+        <SortMenu value={sortKey} onChange={setSortKey} />
       </div>
 
       {/* Onboarding survey snapshot — four pies across one row on wide screens. */}
@@ -340,11 +426,13 @@ function BusinessesContent() {
                 <TableRow>
                   <TableHead>Business</TableHead>
                   <TableHead>Owner</TableHead>
-                  <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Billing</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Customers</TableHead>
+                  <TableHead className="text-right">Stamps</TableHead>
+                  <TableHead>Last activity</TableHead>
+                  <TableHead>Joined</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -400,9 +488,6 @@ function BusinessesContent() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {biz.settings?.category || "—"}
-                      </TableCell>
                       <TableCell>
                         <StatusBadge status={biz.status} />
                       </TableCell>
@@ -412,12 +497,34 @@ function BusinessesContent() {
                       <TableCell>
                         <PlanBadge tier={biz.subscription_tier} />
                       </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {biz.customers_total ?? 0}
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {biz.stamps_total ?? 0}
+                        {biz.stamps_7d ? (
+                          <span className="ml-1 text-xs text-emerald-600">
+                            +{biz.stamps_7d}
+                          </span>
+                        ) : null}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        {new Date(
-                          biz.status === "active" && biz.activated_at
-                            ? biz.activated_at
-                            : biz.created_at
-                        ).toLocaleString(undefined, DATE_TIME_OPTS)}
+                        {biz.last_activity_at
+                          ? new Date(biz.last_activity_at).toLocaleDateString(
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              }
+                            )
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {new Date(biz.created_at).toLocaleString(
+                          undefined,
+                          DATE_TIME_OPTS
+                        )}
                       </TableCell>
                       <TableCell>
                         {biz.status === "active" ? (
@@ -541,5 +648,215 @@ function BreakdownPie({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+interface FilterMenuProps {
+  filters: FilterState;
+  onChange: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
+  onClear: () => void;
+}
+
+function FilterMenu({ filters, onChange, onClear }: FilterMenuProps) {
+  const active = countActiveFilters(filters);
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <FilterIcon className="h-4 w-4" />
+          Filter
+          {active > 0 && (
+            <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">
+              {active}
+            </span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[320px] p-0">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <span className="text-sm font-semibold">Filters</span>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={active === 0}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            <X className="h-3 w-3" /> Clear all
+          </button>
+        </div>
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto p-3">
+          <FilterSection
+            label="Status"
+            value={filters.status}
+            options={[
+              { value: "all", label: "All" },
+              { value: "active", label: "Active" },
+              { value: "suspended", label: "Suspended" },
+            ]}
+            onChange={(v) => onChange("status", v as StatusFilter)}
+          />
+          <FilterSection
+            label="Plan"
+            value={filters.tier}
+            options={[
+              { value: "all", label: "All" },
+              { value: "starter", label: "Starter" },
+              { value: "growth", label: "Growth" },
+              { value: "pro", label: "Pro" },
+            ]}
+            onChange={(v) => onChange("tier", v as TierFilter)}
+          />
+          <FilterSection
+            label="Billing"
+            value={filters.billing}
+            options={(
+              [
+                "all",
+                "trial",
+                "active",
+                "grace",
+                "past_due",
+                "cancelled",
+                "suspended",
+              ] as BillingFilter[]
+            ).map((v) => ({ value: v, label: BILLING_LABELS[v] }))}
+            onChange={(v) => onChange("billing", v as BillingFilter)}
+          />
+          <FilterSection
+            label="Activity"
+            value={filters.activity}
+            options={(
+              [
+                "all",
+                "active_7d",
+                "active_30d",
+                "dormant_30d",
+                "zombie",
+              ] as ActivityFilter[]
+            ).map((v) => ({ value: v, label: ACTIVITY_LABELS[v] }))}
+            onChange={(v) => onChange("activity", v as ActivityFilter)}
+          />
+          <FilterSection
+            label="Trial ending"
+            value={filters.trialEnding}
+            options={(
+              ["all", "7", "14", "0"] as TrialEndingFilter[]
+            ).map((v) => ({ value: v, label: TRIAL_LABELS[v] }))}
+            onChange={(v) => onChange("trialEnding", v as TrialEndingFilter)}
+          />
+          <FilterSection
+            label="Loyalty card"
+            value={filters.design}
+            options={[
+              { value: "all", label: "All" },
+              { value: "active", label: "Has active design" },
+              { value: "none", label: "No design" },
+            ]}
+            onChange={(v) => onChange("design", v as DesignFilter)}
+          />
+          <FilterSection
+            label="Founding partner"
+            value={filters.founding}
+            options={[
+              { value: "all", label: "All" },
+              { value: "yes", label: "Founding only" },
+              { value: "no", label: "Non-founding" },
+            ]}
+            onChange={(v) => onChange("founding", v as FoundingFilter)}
+          />
+          <FilterSection
+            label="Owner is reseller"
+            value={filters.reseller}
+            options={[
+              { value: "all", label: "All" },
+              { value: "yes", label: "Reseller-owned" },
+              { value: "no", label: "Not reseller" },
+            ]}
+            onChange={(v) => onChange("reseller", v as ResellerFilter)}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function FilterSection<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "rounded-md border px-2 py-1 text-xs transition-colors",
+              value === opt.value
+                ? "border-foreground bg-foreground text-background"
+                : "border-input bg-background hover:bg-muted"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SortMenu({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (key: string) => void;
+}) {
+  const current = SORT_OPTIONS.find((o) => o.key === value) ?? SORT_OPTIONS[0];
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <ArrowUpDown className="h-4 w-4" />
+          <span className="text-muted-foreground">Sort:</span>
+          <span className="font-medium">{current.label}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-60 p-1">
+        <ul>
+          {SORT_OPTIONS.map((opt) => (
+            <li key={opt.key}>
+              <button
+                type="button"
+                onClick={() => onChange(opt.key)}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                  opt.key === value
+                    ? "bg-muted font-medium"
+                    : "hover:bg-muted/60"
+                )}
+              >
+                <span>{opt.label}</span>
+                {opt.key === value && <Check className="h-3.5 w-3.5" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
