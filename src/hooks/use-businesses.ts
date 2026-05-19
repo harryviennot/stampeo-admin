@@ -15,6 +15,7 @@ import {
   fetchBusinessPassLifecycle,
   fetchBusinesses,
   fetchBusinessStats,
+  fetchBusinessSubscription,
   suspendBusiness,
   type BucketRangeParams,
   type BusinessListParams,
@@ -60,6 +61,14 @@ export function useBusinessInactiveSnapshot(id: string | undefined) {
   return useQuery({
     queryKey: adminKeys.businesses.inactive(id ?? ""),
     queryFn: () => fetchBusinessInactiveSnapshot(id!),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessSubscription(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.subscription(id ?? ""),
+    queryFn: () => fetchBusinessSubscription(id!),
     enabled: !!id,
   });
 }
