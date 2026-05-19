@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -186,6 +186,60 @@ function countActiveFilters(f: FilterState): number {
   );
 }
 
+// ─── URL <-> state serialization ─────────────────────────────────
+// Maps each filter key to a short query-string param. Keep this tight so the
+// URL stays scannable when shared. Defaults are omitted from the URL.
+const FILTER_TO_PARAM: Record<keyof FilterState, string> = {
+  status: "status",
+  tier: "tier",
+  billing: "billing",
+  design: "design",
+  founding: "founding",
+  reseller: "reseller",
+  activity: "activity",
+  trialEnding: "trial",
+};
+
+const SORT_PARAM = "sort";
+const SEARCH_PARAM = "q";
+const PAGE_PARAM = "page";
+
+interface UrlState {
+  filters: FilterState;
+  sortKey: string;
+  search: string;
+  page: number;
+}
+
+function readUrlState(sp: URLSearchParams): UrlState {
+  const filters: FilterState = { ...DEFAULT_FILTERS };
+  (Object.keys(FILTER_TO_PARAM) as (keyof FilterState)[]).forEach((key) => {
+    const raw = sp.get(FILTER_TO_PARAM[key]);
+    if (raw) {
+      // Trust the value — backend re-validates, and an invalid value just
+      // means an empty result page until the user changes the filter.
+      (filters[key] as string) = raw;
+    }
+  });
+  const sortKey = sp.get(SORT_PARAM) ?? DEFAULT_SORT_KEY;
+  const search = sp.get(SEARCH_PARAM) ?? "";
+  const pageRaw = parseInt(sp.get(PAGE_PARAM) ?? "1", 10);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw - 1 : 0;
+  return { filters, sortKey, search, page };
+}
+
+function buildUrlSearch(state: UrlState): string {
+  const sp = new URLSearchParams();
+  (Object.keys(FILTER_TO_PARAM) as (keyof FilterState)[]).forEach((key) => {
+    const v = state.filters[key];
+    if (v !== DEFAULT_FILTERS[key]) sp.set(FILTER_TO_PARAM[key], v);
+  });
+  if (state.sortKey !== DEFAULT_SORT_KEY) sp.set(SORT_PARAM, state.sortKey);
+  if (state.search) sp.set(SEARCH_PARAM, state.search);
+  if (state.page > 0) sp.set(PAGE_PARAM, String(state.page + 1));
+  return sp.toString();
+}
+
 const TEAM_SIZE_LABELS: Record<string, string> = {
   solo: "Solo",
   small: "Small (2–5)",
@@ -242,16 +296,37 @@ export default function BusinessesPage() {
 
 function BusinessesContent() {
   const searchParams = useSearchParams();
-  const initialStatus = (searchParams.get("status") as StatusFilter) || "all";
+  const router = useRouter();
+  const pathname = usePathname();
   const qc = useQueryClient();
 
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<FilterState>({
-    ...DEFAULT_FILTERS,
-    status: initialStatus,
-  });
-  const [sortKey, setSortKey] = useState<string>(DEFAULT_SORT_KEY);
-  const [page, setPage] = useState(0);
+  // URL is the source of truth on mount. Subsequent state changes are pushed
+  // back into the URL by the effect below, so the back/forward buttons and
+  // shared links always restore the same view.
+  const initial = readUrlState(
+    new URLSearchParams(searchParams?.toString() ?? "")
+  );
+
+  const [search, setSearch] = useState(initial.search);
+  const [filters, setFilters] = useState<FilterState>(initial.filters);
+  const [sortKey, setSortKey] = useState<string>(initial.sortKey);
+  const [page, setPage] = useState(initial.page);
+
+  // Sync state -> URL via replace (so filter tweaks don't pollute browser
+  // history). The mount render already matches the URL, so we skip the first
+  // run to avoid a redundant router call.
+  const hasMounted = useRef(false);
+  useEffect(() => {
+    const qs = buildUrlSearch({ filters, sortKey, search, page });
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
+    const current = searchParams?.toString() ?? "";
+    if (qs !== current) {
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+  }, [filters, sortKey, search, page, pathname, router, searchParams]);
 
   const sort =
     SORT_OPTIONS.find((s) => s.key === sortKey) ?? SORT_OPTIONS[0];
