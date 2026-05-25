@@ -12,6 +12,7 @@ import {
   fetchOnboardingBreakdowns,
   fetchOnboardingFunnel,
   fetchPassLifecycle,
+  fetchRevenueSnapshot,
   fetchSetupWizardFunnel,
   fetchStampHeatmap,
   fetchTimeseries,
@@ -37,6 +38,13 @@ export function useBillingBreakdown() {
   return useQuery({
     queryKey: adminKeys.stats.billing,
     queryFn: fetchBillingBreakdown,
+  });
+}
+
+export function useRevenueSnapshot() {
+  return useQuery({
+    queryKey: adminKeys.stats.revenue,
+    queryFn: fetchRevenueSnapshot,
   });
 }
 
