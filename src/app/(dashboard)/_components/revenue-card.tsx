@@ -46,7 +46,7 @@ export function RevenueCard() {
   return (
     <ChartCard
       title="Revenue"
-      subtitle="Expected MRR from active trials · actual revenue last month"
+      subtitle="Expected MRR from active subscriptions · actual revenue last month"
       info={
         <>
           <p className="font-medium text-foreground">
@@ -54,8 +54,9 @@ export function RevenueCard() {
           </p>
           <p className="mt-1 text-muted-foreground">
             <span className="font-medium">Expected this month</span> sums the
-            monthly Stripe price of every business currently in trial —
-            potential MRR if all trials convert.{" "}
+            monthly Stripe price of every business with{" "}
+            <span className="font-medium">billing_status = &apos;active&apos;</span> —
+            the recurring revenue from current paying customers.{" "}
             <span className="font-medium">Last month</span> sums{" "}
             <span className="font-medium">amount_paid</span> across every
             Stripe invoice settled in the previous calendar month.
@@ -78,15 +79,17 @@ export function RevenueCard() {
                 Expected · {thisMonth}
               </div>
               <p className="mt-1 text-2xl font-bold tabular-nums">
-                {formatAmount(data.expected_trial_mrr, currency)}
+                {formatAmount(data.active_mrr, currency)}
               </p>
               <p className="text-xs text-muted-foreground">
-                from {data.trial_count}{" "}
-                {data.trial_count === 1 ? "active trial" : "active trials"}
-                {data.trials_missing_price > 0 && (
+                from {data.active_count}{" "}
+                {data.active_count === 1
+                  ? "active subscription"
+                  : "active subscriptions"}
+                {data.actives_missing_price > 0 && (
                   <span className="ml-1 inline-flex items-center gap-1 text-amber-700">
                     <AlertTriangle className="h-3 w-3" />
-                    {data.trials_missing_price} missing price
+                    {data.actives_missing_price} missing price
                   </span>
                 )}
               </p>
@@ -108,10 +111,10 @@ export function RevenueCard() {
             </div>
           </div>
 
-          {data.expected_trial_breakdown.length > 0 && (
+          {data.active_breakdown.length > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                Expected breakdown
+                Active subscription breakdown
               </p>
               <div className="overflow-hidden rounded-md border">
                 <table className="w-full text-xs">
@@ -119,7 +122,7 @@ export function RevenueCard() {
                     <tr className="border-b bg-muted/30 text-muted-foreground">
                       <th className="px-2 py-1.5 text-left font-medium">Tier</th>
                       <th className="px-2 py-1.5 text-right font-medium">
-                        Trials
+                        Subs
                       </th>
                       <th className="px-2 py-1.5 text-right font-medium">
                         Unit
@@ -130,7 +133,7 @@ export function RevenueCard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.expected_trial_breakdown.map((row, i) => (
+                    {data.active_breakdown.map((row, i) => (
                       <tr
                         key={`${row.tier}-${row.is_founding}-${i}`}
                         className="border-b last:border-0"
