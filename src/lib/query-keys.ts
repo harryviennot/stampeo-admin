@@ -12,6 +12,7 @@ export const adminKeys = {
   stats: {
     overview: ["stats", "overview"] as const,
     billing: ["stats", "billing"] as const,
+    revenue: ["stats", "revenue"] as const,
     timeseries: (p: TimeseriesParams) => ["stats", "timeseries", p] as const,
     topBusinesses: (limit: number) =>
       ["stats", "top-businesses", limit] as const,
