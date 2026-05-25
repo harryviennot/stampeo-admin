@@ -561,10 +561,10 @@ export interface RevenueSnapshot {
   currency: string;
   this_month_start: string;
   last_month_start: string;
-  trial_count: number;
-  trials_missing_price: number;
-  expected_trial_mrr: number;
-  expected_trial_breakdown: RevenueTrialBreakdownRow[];
+  active_count: number;
+  actives_missing_price: number;
+  active_mrr: number;
+  active_breakdown: RevenueTrialBreakdownRow[];
   last_month_revenue: number;
   last_month_invoice_count: number;
   stripe_error: string | null;

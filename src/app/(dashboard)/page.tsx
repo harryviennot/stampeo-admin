@@ -152,8 +152,9 @@ export default function DashboardPage() {
               <p className="mt-1 text-muted-foreground">
                 Count of businesses with{" "}
                 <span className="font-medium">billing_status = &apos;trial&apos;</span>.
-                These haven&apos;t converted to paid yet — see the Monetization
-                section for the MRR they represent.
+                These haven&apos;t converted to paid yet — they don&apos;t
+                contribute to MRR until they flip to{" "}
+                <span className="font-medium">active</span>.
               </p>
             </>
           }
