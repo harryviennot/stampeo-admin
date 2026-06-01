@@ -48,23 +48,23 @@ export async function middleware(request: NextRequest) {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const isLoginPage = request.nextUrl.pathname === "/login";
 
   if (isLoginPage) {
-    if (session?.user?.app_metadata?.is_superadmin) {
+    if (user?.app_metadata?.is_superadmin) {
       return NextResponse.redirect(new URL("/", request.url));
     }
     return response;
   }
 
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (!session.user.app_metadata?.is_superadmin) {
+  if (!user.app_metadata?.is_superadmin) {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       new URL("/login?error=unauthorized", request.url)
