@@ -549,6 +549,38 @@ export async function fetchBillingBreakdown(): Promise<BillingBreakdown> {
   return res.json();
 }
 
+export interface RevenueTrialBreakdownRow {
+  tier: string;
+  is_founding: boolean;
+  count: number;
+  unit_amount: number;
+  subtotal: number;
+}
+
+export interface RevenueSnapshot {
+  currency: string;
+  this_month_start: string;
+  last_month_start: string;
+  next_month_start: string;
+  active_count: number;
+  actives_missing_price: number;
+  active_mrr: number;
+  active_breakdown: RevenueTrialBreakdownRow[];
+  converting_trial_count: number;
+  converting_trial_mrr: number;
+  next_month_mrr: number;
+  last_month_revenue: number;
+  last_month_invoice_count: number;
+  stripe_error: string | null;
+}
+
+export async function fetchRevenueSnapshot(): Promise<RevenueSnapshot> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/stats/revenue`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function fetchTopBusinesses(
   limit: number = 10
 ): Promise<TopBusinessesResponse> {

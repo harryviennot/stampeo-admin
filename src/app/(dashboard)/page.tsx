@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Building2,
   CircleDot,
+  Clock,
   Crown,
   Ghost,
   Gift,
@@ -32,6 +33,7 @@ import { BusinessSignupsChart } from "./_components/business-signups-chart";
 import { CustomerSignupsChart } from "./_components/customer-signups-chart";
 import { OnboardingFunnelChart } from "./_components/onboarding-funnel-chart";
 import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
+import { RevenueCard } from "./_components/revenue-card";
 import { SetupWizardFunnelChart } from "./_components/setup-wizard-funnel-chart";
 import { StampHeatmapCard } from "./_components/stamp-heatmap-card";
 import { StampsChart } from "./_components/stamps-chart";
@@ -123,17 +125,6 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Platform overview</p>
       </div>
 
-      {/* ── Leaderboards ── */}
-      <SectionHeader
-        title="Leaderboards"
-        description="Who's driving activity right now, who's most engaged per customer, and who are the all-time heavyweights."
-      />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopBusinessesRollingCard />
-        <TopBusinessesDensityCard />
-      </div>
-      <TopBusinessesAllTimeCard />
-
       {/* ── Platform totals ── */}
       <SectionHeader
         title="Platform totals"
@@ -146,6 +137,27 @@ export default function DashboardPage() {
           loading={statsPending}
           icon={<Building2 className="h-4 w-4" />}
           info="Every business row regardless of status (active, pending, suspended). Lifetime count — doesn't include businesses that were hard-deleted."
+        />
+        <StatCard
+          label="Active Trials"
+          value={billing?.trial}
+          loading={billingPending}
+          icon={<Clock className="h-4 w-4" />}
+          badgeClass="bg-blue-100 text-blue-700"
+          info={
+            <>
+              <p className="font-medium text-foreground">
+                Businesses currently on a trial
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Count of businesses with{" "}
+                <span className="font-medium">billing_status = &apos;trial&apos;</span>.
+                These haven&apos;t converted to paid yet — they don&apos;t
+                contribute to MRR until they flip to{" "}
+                <span className="font-medium">active</span>.
+              </p>
+            </>
+          }
         />
         <StatCard
           label="Total Customers"
@@ -306,6 +318,17 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* ── Leaderboards ── */}
+      <SectionHeader
+        title="Leaderboards"
+        description="Who's driving activity right now, who's most engaged per customer, and who are the all-time heavyweights."
+      />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TopBusinessesRollingCard />
+        <TopBusinessesDensityCard />
+      </div>
+      <TopBusinessesAllTimeCard />
+
       {/* ── Growth ── */}
       <SectionHeader
         title="Growth"
@@ -341,6 +364,7 @@ export default function DashboardPage() {
         title="Monetization"
         description="How quickly trial businesses convert to paid, and the current billing mix across the platform."
       />
+      <RevenueCard />
       <TrialCohortsChart />
       <ChartCard
         title="Billing status"
