@@ -37,6 +37,18 @@ export const adminKeys = {
     stampHeatmap: (p: RangeParams) => ["stats", "stamp-heatmap", p] as const,
     topBusinessesDensity: (limit: number) =>
       ["stats", "top-businesses-density", limit] as const,
+    platformHealth: ["stats", "platform-health"] as const,
+    businessRetention: (weeks: number) =>
+      ["stats", "business-retention", weeks] as const,
+    paywallFunnel: (weeks: number) => ["stats", "paywall-funnel", weeks] as const,
+    paywallCohorts: (weeks: number) =>
+      ["stats", "paywall-cohorts", weeks] as const,
+    topBusinessesRewards: (limit: number) =>
+      ["stats", "top-businesses-rewards", limit] as const,
+    topBusinessesRepeat: (limit: number) =>
+      ["stats", "top-businesses-repeat", limit] as const,
+    topBusinessesHealth: (limit: number) =>
+      ["stats", "top-businesses-health", limit] as const,
   },
   businesses: {
     all: ["businesses"] as const,

@@ -100,6 +100,7 @@ const HEARD_FROM_COLORS: Record<string, string> = {
 type StatusFilter = "all" | "active" | "suspended";
 type BillingFilter =
   | "all"
+  | "pending_checkout"
   | "trial"
   | "active"
   | "grace"
@@ -108,6 +109,7 @@ type BillingFilter =
   | "suspended";
 type FoundingFilter = "all" | "yes" | "no";
 type ResellerFilter = "all" | "yes" | "no";
+type CardUpfrontFilter = "all" | "yes" | "no";
 type ActivityFilter = "all" | BusinessActivityFilter;
 type TrialEndingFilter = "all" | "7" | "14" | "0";
 
@@ -118,6 +120,7 @@ interface FilterState {
   design: DesignFilter;
   founding: FoundingFilter;
   reseller: ResellerFilter;
+  cardUpfront: CardUpfrontFilter;
   activity: ActivityFilter;
   trialEnding: TrialEndingFilter;
 }
@@ -129,6 +132,7 @@ const DEFAULT_FILTERS: FilterState = {
   design: "all",
   founding: "all",
   reseller: "all",
+  cardUpfront: "all",
   activity: "all",
   trialEnding: "all",
 };
@@ -156,6 +160,7 @@ const DEFAULT_SORT_KEY = "newest";
 
 const BILLING_LABELS: Record<BillingFilter, string> = {
   all: "All",
+  pending_checkout: "Pending checkout",
   trial: "Trial",
   active: "Active",
   grace: "Grace",
@@ -196,6 +201,7 @@ const FILTER_TO_PARAM: Record<keyof FilterState, string> = {
   design: "design",
   founding: "founding",
   reseller: "reseller",
+  cardUpfront: "card",
   activity: "activity",
   trialEnding: "trial",
 };
@@ -344,6 +350,8 @@ function BusinessesContent() {
       filters.founding === "all" ? undefined : filters.founding === "yes",
     owner_is_reseller:
       filters.reseller === "all" ? undefined : filters.reseller === "yes",
+    requires_card_upfront:
+      filters.cardUpfront === "all" ? undefined : filters.cardUpfront === "yes",
     activity: filters.activity === "all" ? undefined : filters.activity,
     trial_ending_days:
       filters.trialEnding === "all" ? undefined : Number(filters.trialEnding),
@@ -567,7 +575,17 @@ function BusinessesContent() {
                         <StatusBadge status={biz.status} />
                       </TableCell>
                       <TableCell>
-                        <BillingStatusBadge status={biz.billing_status} />
+                        <div className="flex items-center gap-1.5">
+                          <BillingStatusBadge status={biz.billing_status} />
+                          {biz.requires_card_upfront && (
+                            <span
+                              className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700"
+                              title="Hard-paywall cohort (card required up front)"
+                            >
+                              card
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <PlanBadge tier={biz.subscription_tier} />
@@ -788,6 +806,7 @@ function FilterMenu({ filters, onChange, onClear }: FilterMenuProps) {
             options={(
               [
                 "all",
+                "pending_checkout",
                 "trial",
                 "active",
                 "grace",
@@ -849,6 +868,16 @@ function FilterMenu({ filters, onChange, onClear }: FilterMenuProps) {
               { value: "no", label: "Not reseller" },
             ]}
             onChange={(v) => onChange("reseller", v as ResellerFilter)}
+          />
+          <FilterSection
+            label="Card upfront"
+            value={filters.cardUpfront}
+            options={[
+              { value: "all", label: "All" },
+              { value: "yes", label: "Card upfront" },
+              { value: "no", label: "Legacy (no card)" },
+            ]}
+            onChange={(v) => onChange("cardUpfront", v as CardUpfrontFilter)}
           />
         </div>
       </PopoverContent>

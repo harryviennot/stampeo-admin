@@ -87,8 +87,9 @@ export interface Business {
   activated_at: string | null;
   created_at: string;
   updated_at: string;
-  // Billing (from migration 48)
+  // Billing (from migration 48; pending_checkout from migration 87)
   billing_status?:
+    | "pending_checkout"
     | "trial"
     | "active"
     | "past_due"
@@ -98,6 +99,8 @@ export interface Business {
   is_founding_partner?: boolean;
   trial_ends_at?: string | null;
   grace_ends_at?: string | null;
+  // Hard-paywall cohort flag (migration 86)
+  requires_card_upfront?: boolean;
   // Onboarding survey + business contact (sourced from businesses.settings since migration 78)
   identity_website?: string | null;
   business_info?: BusinessInfoEntry[];
@@ -161,6 +164,7 @@ export interface BusinessListParams {
   status?: "active" | "suspended";
   tier?: "starter" | "growth" | "pro";
   billing_status?:
+    | "pending_checkout"
     | "trial"
     | "active"
     | "past_due"
@@ -170,6 +174,7 @@ export interface BusinessListParams {
   has_active_design?: boolean;
   is_founding_partner?: boolean;
   owner_is_reseller?: boolean;
+  requires_card_upfront?: boolean;
   category?: string;
   activity?: BusinessActivityFilter;
   trial_ending_days?: number;
@@ -420,10 +425,18 @@ export interface SetupWizardFunnelStep {
   reached: number;
 }
 
+export interface SetupWizardStuckStep {
+  chapter: string;
+  step: string;
+  count: number;
+}
+
 export interface SetupWizardFunnelResponse {
   started: number;
   completed: number;
   steps: SetupWizardFunnelStep[];
+  // In-progress businesses bucketed by where their last_step is parked.
+  stuck: SetupWizardStuckStep[];
 }
 
 export async function fetchSetupWizardFunnel(
@@ -557,6 +570,14 @@ export interface RevenueTrialBreakdownRow {
   subtotal: number;
 }
 
+export interface MissingPriceBusiness {
+  id: string;
+  name: string;
+  tier: string;
+  is_founding: boolean;
+  has_price_id: boolean;
+}
+
 export interface RevenueSnapshot {
   currency: string;
   this_month_start: string;
@@ -564,6 +585,8 @@ export interface RevenueSnapshot {
   next_month_start: string;
   active_count: number;
   actives_missing_price: number;
+  missing_price_businesses: MissingPriceBusiness[];
+  price_lookup_error: boolean;
   active_mrr: number;
   active_breakdown: RevenueTrialBreakdownRow[];
   converting_trial_count: number;
@@ -850,6 +873,205 @@ export async function fetchTopBusinessesDensity(
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${API_BASE_URL}/admin/stats/top-businesses-density?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ─── Analytics: platform health, retention, paywall, leaderboards ───
+
+export interface PlatformHealth {
+  active_biz_7d: number;
+  active_biz_30d: number;
+  stickiness: number | null;
+  qualified_biz: number;
+  qualified_active_biz: number;
+  median_cust_active: number | null;
+  repeat_cust_rate: number | null;
+  median_days_first_stamp: number | null;
+}
+
+export async function fetchPlatformHealth(): Promise<PlatformHealth> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/stats/platform-health`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface BusinessRetentionCohortRow {
+  cohort_week: string;
+  cohort_size: number;
+  retained_d7: number | null;
+  retained_d14: number | null;
+  retained_d30: number | null;
+  retained_d60: number | null;
+  retained_d90: number | null;
+  rate_d7: number | null;
+  rate_d14: number | null;
+  rate_d30: number | null;
+  rate_d60: number | null;
+  rate_d90: number | null;
+}
+
+export interface BusinessRetentionHeadline {
+  cohort_week: string;
+  cohort_size: number;
+  rate_d60: number;
+  gate: number;
+  pass: boolean;
+}
+
+export interface BusinessRetentionResponse {
+  cohorts: BusinessRetentionCohortRow[];
+  headline: BusinessRetentionHeadline | null;
+}
+
+export async function fetchBusinessRetention(
+  weeks: number = 16
+): Promise<BusinessRetentionResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/business-retention?weeks=${weeks}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface PaywallFunnelGroup {
+  requires_card: boolean;
+  cohort_size: number;
+  reached_checkout: number;
+  trial_started: number;
+  activated: number;
+  paid: number;
+}
+
+export interface PaywallFunnelResponse {
+  groups: PaywallFunnelGroup[];
+}
+
+export async function fetchPaywallFunnel(
+  weeks: number = 12
+): Promise<PaywallFunnelResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/paywall-funnel?weeks=${weeks}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface PaywallCohortRow {
+  cohort_week: string;
+  requires_card: boolean;
+  cohort_size: number;
+  converted_w1: number | null;
+  converted_w2: number | null;
+  converted_w4: number | null;
+  converted_w8: number | null;
+}
+
+export interface PaywallCohortsResponse {
+  cohorts: PaywallCohortRow[];
+}
+
+export async function fetchPaywallCohorts(
+  weeks: number = 12
+): Promise<PaywallCohortsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/paywall-cohorts?weeks=${weeks}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface RewardsLeaderboardRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  billing_status: string;
+  rewards: number;
+  customers_total: number;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesRewardsResponse {
+  items: RewardsLeaderboardRow[];
+}
+
+export async function fetchTopBusinessesRewards(
+  limit: number = 10
+): Promise<TopBusinessesRewardsResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses-rewards?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface RepeatLeaderboardRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  billing_status: string;
+  repeat_rate: number;
+  repeat_customers: number;
+  customers_total: number;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesRepeatResponse {
+  items: RepeatLeaderboardRow[];
+}
+
+export async function fetchTopBusinessesRepeat(
+  limit: number = 10
+): Promise<TopBusinessesRepeatResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses-repeat?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface HealthLeaderboardRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  billing_status: string;
+  customers_total: number;
+  stamps_7d: number;
+  rewards_7d: number;
+  repeat_rate: number | null;
+  n_vol: number;
+  n_density: number;
+  n_repeat: number;
+  n_rewards: number;
+  score: number;
+  last_activity_at: string | null;
+}
+
+export interface TopBusinessesHealthResponse {
+  items: HealthLeaderboardRow[];
+}
+
+export async function fetchTopBusinessesHealth(
+  limit: number = 10
+): Promise<TopBusinessesHealthResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/top-businesses-health?limit=${limit}`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());
