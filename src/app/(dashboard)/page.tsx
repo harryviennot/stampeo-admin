@@ -1,15 +1,20 @@
 "use client";
 
 import {
+  Activity,
   AlertTriangle,
   Building2,
   CircleDot,
   Clock,
   Crown,
+  Gauge,
   Ghost,
   Gift,
+  Repeat,
   ShieldCheck,
   Skull,
+  Store,
+  Timer,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -17,9 +22,11 @@ import { StatCard } from "@/components/stat-card";
 import { ChartCard } from "@/components/chart-card";
 import {
   useBillingBreakdown,
+  useBusinessRetention,
   useGlobalStats,
   useInactiveSnapshot,
   useOnboardingFunnel,
+  usePlatformHealth,
 } from "@/hooks/use-stats";
 import { Cell, Pie, PieChart } from "recharts";
 import {
@@ -42,6 +49,12 @@ import {
   TopBusinessesRollingCard,
 } from "./_components/top-businesses-cards";
 import { TopBusinessesDensityCard } from "./_components/top-businesses-density-card";
+import { TopBusinessesHealthCard } from "./_components/top-businesses-health-card";
+import { TopBusinessesRewardsCard } from "./_components/top-businesses-rewards-card";
+import { TopBusinessesRepeatCard } from "./_components/top-businesses-repeat-card";
+import { BusinessRetentionChart } from "./_components/business-retention-chart";
+import { PaywallFunnelChart } from "./_components/paywall-funnel-chart";
+import { PaywallCohortsChart } from "./_components/paywall-cohorts-chart";
 import { TrialCohortsChart } from "./_components/trial-cohorts-chart";
 
 const billingColors: Record<string, string> = {
@@ -69,6 +82,23 @@ export default function DashboardPage() {
   const { data: funnel, isPending: funnelPending } = useOnboardingFunnel({
     range: "90d",
   });
+  const { data: health, isPending: healthPending } = usePlatformHealth();
+  const { data: retention, isPending: retentionPending } =
+    useBusinessRetention(16);
+
+  const stickinessPct =
+    health && health.stickiness !== null
+      ? Math.round(health.stickiness * 100)
+      : null;
+  const repeatPct =
+    health && health.repeat_cust_rate !== null
+      ? Math.round(health.repeat_cust_rate * 100)
+      : null;
+  const retentionHeadline = retention?.headline ?? null;
+  const retentionD60Pct =
+    retentionHeadline !== null
+      ? Math.round(retentionHeadline.rate_d60 * 100)
+      : null;
 
   const completionRate = (() => {
     if (!funnel) return null;
@@ -316,16 +346,130 @@ export default function DashboardPage() {
             </>
           }
         />
+        <StatCard
+          label="Active Businesses · 7d"
+          value={health?.active_biz_7d}
+          loading={healthPending}
+          icon={<Activity className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info="Distinct businesses with at least one stamp_added in the last 7 days — the platform's weekly active businesses (WAU)."
+        />
+        <StatCard
+          label="Active Businesses · 30d"
+          value={health?.active_biz_30d}
+          loading={healthPending}
+          icon={<Activity className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info="Distinct businesses with at least one stamp_added in the last 30 days — monthly active businesses (MAU)."
+        />
+        <StatCard
+          label="Stickiness · WAU/MAU"
+          value={stickinessPct === null ? "—" : `${stickinessPct}%`}
+          loading={healthPending}
+          icon={<Gauge className="h-4 w-4" />}
+          badgeClass={
+            stickinessPct === null
+              ? undefined
+              : stickinessPct >= 40
+                ? "bg-emerald-100 text-emerald-700"
+                : stickinessPct >= 20
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-red-100 text-red-700"
+          }
+          info={
+            <>
+              <p className="font-medium text-foreground">How often active businesses come back</p>
+              <p className="mt-1 text-muted-foreground">
+                7-day active ÷ 30-day active businesses. A higher ratio means
+                businesses use Stampeo most weeks of the month, not just once.{" "}
+                <span className="font-medium">Higher is better.</span>
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Qualified Businesses"
+          value={health?.qualified_biz}
+          loading={healthPending}
+          icon={<Store className="h-4 w-4" />}
+          info={
+            <>
+              <p className="font-medium text-foreground">Businesses with more than 2 customers</p>
+              <p className="mt-1 text-muted-foreground">
+                Filters out demos and one-customer onboarding tests. A truer base
+                count than total businesses.
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Qualified & Active"
+          value={health?.qualified_active_biz}
+          loading={healthPending}
+          icon={<Store className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info={
+            <>
+              <p className="font-medium text-foreground">Real, live businesses</p>
+              <p className="mt-1 text-muted-foreground">
+                More than 2 customers <span className="font-medium">and</span>{" "}
+                active in the last 30 days. The honest &quot;live businesses&quot;
+                number to quote — immune to self-stamp demos.
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Repeat-Customer Rate"
+          value={repeatPct === null ? "—" : `${repeatPct}%`}
+          loading={healthPending}
+          icon={<Repeat className="h-4 w-4" />}
+          badgeClass={
+            repeatPct === null
+              ? undefined
+              : repeatPct >= 40
+                ? "bg-emerald-100 text-emerald-700"
+                : repeatPct >= 25
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-red-100 text-red-700"
+          }
+          info={
+            <>
+              <p className="font-medium text-foreground">Do end-customers come back?</p>
+              <p className="mt-1 text-muted-foreground">
+                Platform-wide share of customers who stamped on ≥2 distinct days
+                ÷ customers who ever stamped. The single best proof the loyalty
+                product retains. <span className="font-medium">Higher is better.</span>
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Median Days to First Stamp"
+          value={
+            health && health.median_days_first_stamp !== null
+              ? Math.round(health.median_days_first_stamp * 10) / 10
+              : "—"
+          }
+          loading={healthPending}
+          icon={<Timer className="h-4 w-4" />}
+          info="Median time from business signup to its first stamp_added, across businesses that ever stamped. Activation latency — if it creeps up, onboarding is getting harder. Lower is better."
+        />
       </div>
 
       {/* ── Leaderboards ── */}
       <SectionHeader
         title="Leaderboards"
-        description="Who's driving activity right now, who's most engaged per customer, and who are the all-time heavyweights."
+        description="The composite health score blends repeat rate, density, rewards and volume; the drill-downs break out each dimension. All exclude one-customer onboarding noise (≥5 customers)."
       />
+      <TopBusinessesHealthCard />
       <div className="grid gap-4 lg:grid-cols-2">
         <TopBusinessesRollingCard />
         <TopBusinessesDensityCard />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TopBusinessesRepeatCard />
+        <TopBusinessesRewardsCard />
       </div>
       <TopBusinessesAllTimeCard />
 
@@ -445,6 +589,47 @@ export default function DashboardPage() {
           </div>
         )}
       </ChartCard>
+
+      {/* ── Retention & ad-readiness ── */}
+      <SectionHeader
+        title="Retention & ad-readiness"
+        description="The day-60 retention of each business signup cohort. The gate: once a matured cohort holds ≥25% at day 60, paid acquisition is worth turning on (STA-199 / STA-204)."
+      />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          label="Day-60 Retention · latest matured cohort"
+          value={retentionD60Pct === null ? "—" : `${retentionD60Pct}%`}
+          loading={retentionPending}
+          icon={<Activity className="h-4 w-4" />}
+          badgeClass={
+            retentionHeadline === null
+              ? undefined
+              : retentionHeadline.pass
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-red-100 text-red-700"
+          }
+          info={
+            <>
+              <p className="font-medium text-foreground">Ad-readiness gate: ≥ 25% at day 60</p>
+              <p className="mt-1 text-muted-foreground">
+                Share of the most recent fully-matured signup cohort still active
+                (stamping) around day 60. At or above 25% means acquired
+                businesses stick well enough to justify paid acquisition.
+                <span className="font-medium"> Higher is better.</span>
+              </p>
+            </>
+          }
+        />
+      </div>
+      <BusinessRetentionChart />
+
+      {/* ── Paywall ── */}
+      <SectionHeader
+        title="Hard paywall"
+        description="Effect of requiring a card at the end of onboarding: top-of-funnel completion and trial→paid conversion, card-required cohort vs the grandfathered no-card baseline (STA-198 / STA-200 / STA-202)."
+      />
+      <PaywallFunnelChart />
+      <PaywallCohortsChart />
 
       {/* ── Communication ── */}
       <SectionHeader

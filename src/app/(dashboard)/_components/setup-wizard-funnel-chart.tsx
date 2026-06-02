@@ -87,6 +87,18 @@ export function SetupWizardFunnelChart() {
     reachedByKey.set(`${s.chapter}/${s.step}`, s.reached);
   }
 
+  const stuckByKey = new Map<string, number>();
+  for (const s of data?.stuck ?? []) {
+    stuckByKey.set(`${s.chapter}/${s.step}`, s.count);
+  }
+  const stuckRows = CHAPTER_STEPS.map((cs) => ({
+    key: `${cs.chapter}/${cs.step}`,
+    label: narrow ? cs.shortLabel : cs.label,
+    count: stuckByKey.get(`${cs.chapter}/${cs.step}`) ?? 0,
+  }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+
   const chartData = CHAPTER_STEPS.map((cs, i) => {
     const reached = reachedByKey.get(`${cs.chapter}/${cs.step}`) ?? 0;
     const prev =
@@ -121,22 +133,26 @@ export function SetupWizardFunnelChart() {
             Post-signup in-app activation wizard
           </p>
           <p className="mt-1 text-muted-foreground">
-            Tracks progression through{" "}
-            <span className="font-medium">settings.setup_progress.completed[]</span>{" "}
-            — the in-app wizard that runs after a business is created. Distinct
-            from the pre-signup{" "}
-            <span className="font-medium">onboarding funnel</span> above (which
-            tracks the 6-step pre-auth wizard via{" "}
-            <span className="font-medium">onboarding_progress</span>).
+            A real funnel of{" "}
+            <span className="font-medium">settings.setup_progress</span> — the
+            in-app wizard that runs after a business is created. Each bar is{" "}
+            <span className="font-medium">reached at least this far</span>: per
+            business we take the furthest step reached (completed ∪ skipped ∪
+            last_step) and count it for every earlier step, so the curve is
+            monotonic and immune to out-of-order completion, the install-step
+            self-revert, and conditionally-hidden chapters (e.g. team for solo
+            owners) reading as drops. Distinct from the pre-signup{" "}
+            <span className="font-medium">onboarding funnel</span> above.
           </p>
           <p className="mt-2 text-muted-foreground">
             <span className="font-medium text-foreground">Started</span>{" "}
             counts businesses with at least one completed step (excludes
             migration-74 backfill rows). <span className="font-medium">Completed</span>{" "}
             requires <span className="font-medium">setup_progress.completed_at</span>.
-            A bar turns red when ≥30% of the previous step drops. Solo owners
-            have the <span className="font-medium">team</span> chapter hidden
-            by the wizard, so its bar undercounts proportional to solo signups.
+            A bar turns red when ≥30% of the previous step drops. The{" "}
+            <span className="font-medium">Currently parked at</span> chips below
+            show where in-progress businesses are stalled — the true drop-off
+            signal.
           </p>
         </>
       }
@@ -155,58 +171,78 @@ export function SetupWizardFunnelChart() {
           No wizard activity in the last 90 days
         </p>
       ) : (
-        <ChartContainer
-          config={config}
-          className="h-[380px] w-full sm:h-[460px]"
-        >
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{
-              left: 4,
-              right: narrow ? 28 : 48,
-              top: 4,
-              bottom: 4,
-            }}
+        <>
+          <ChartContainer
+            config={config}
+            className="h-[380px] w-full sm:h-[460px]"
           >
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis
-              type="number"
-              tickLine={false}
-              axisLine={false}
-              fontSize={narrow ? 10 : 11}
-              allowDecimals={false}
-            />
-            <YAxis
-              dataKey="label"
-              type="category"
-              tickLine={false}
-              axisLine={false}
-              width={narrow ? 96 : 170}
-              fontSize={narrow ? 10 : 11}
-              interval={0}
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="reached" radius={4}>
-              {chartData.map((row) => (
-                <Cell
-                  key={row.key}
-                  fill={
-                    row.dropoff !== null && row.dropoff >= 30
-                      ? "var(--chart-5)"
-                      : row.fill
-                  }
-                />
-              ))}
-              <LabelList
-                dataKey="reached"
-                position="right"
-                className="fill-foreground"
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{
+                left: 4,
+                right: narrow ? 28 : 48,
+                top: 4,
+                bottom: 4,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis
+                type="number"
+                tickLine={false}
+                axisLine={false}
                 fontSize={narrow ? 10 : 11}
+                allowDecimals={false}
               />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+              <YAxis
+                dataKey="label"
+                type="category"
+                tickLine={false}
+                axisLine={false}
+                width={narrow ? 96 : 170}
+                fontSize={narrow ? 10 : 11}
+                interval={0}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="reached" radius={4}>
+                {chartData.map((row) => (
+                  <Cell
+                    key={row.key}
+                    fill={
+                      row.dropoff !== null && row.dropoff >= 30
+                        ? "var(--chart-5)"
+                        : row.fill
+                    }
+                  />
+                ))}
+                <LabelList
+                  dataKey="reached"
+                  position="right"
+                  className="fill-foreground"
+                  fontSize={narrow ? 10 : 11}
+                />
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+          {stuckRows.length > 0 && (
+            <div className="mt-4 border-t pt-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                Currently parked at · in-progress businesses
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {stuckRows.map((r) => (
+                  <span
+                    key={r.key}
+                    className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px]"
+                  >
+                    {r.label}
+                    <span className="font-medium tabular-nums">{r.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </ChartCard>
   );

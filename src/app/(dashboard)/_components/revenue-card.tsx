@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, CalendarClock, Coins, TrendingUp } from "lucide-react";
 import { ChartCard } from "@/components/chart-card";
 import { useRevenueSnapshot } from "@/hooks/use-stats";
@@ -94,7 +95,9 @@ export function RevenueCard() {
                 {data.actives_missing_price > 0 && (
                   <span className="ml-1 inline-flex items-center gap-1 text-amber-700">
                     <AlertTriangle className="h-3 w-3" />
-                    {data.actives_missing_price} missing price
+                    {data.price_lookup_error
+                      ? "Stripe price lookup failed"
+                      : `${data.actives_missing_price} missing price`}
                   </span>
                 )}
               </p>
@@ -191,6 +194,45 @@ export function RevenueCard() {
               </div>
             </div>
           )}
+
+          {data.missing_price_businesses &&
+            data.missing_price_businesses.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50/50 p-2 text-xs">
+                <div className="flex items-center gap-1 font-medium text-amber-800">
+                  <AlertTriangle className="h-3 w-3" />
+                  {data.price_lookup_error
+                    ? "Stripe price lookup failed — MRR is understated below"
+                    : `${data.missing_price_businesses.length} active ${
+                        data.missing_price_businesses.length === 1
+                          ? "business"
+                          : "businesses"
+                      } with no resolvable price`}
+                </div>
+                <ul className="mt-1 space-y-0.5 text-amber-700">
+                  {data.missing_price_businesses.map((b) => (
+                    <li key={b.id}>
+                      <Link
+                        href={`/businesses/${b.id}`}
+                        className="underline hover:no-underline"
+                      >
+                        {b.name}
+                      </Link>{" "}
+                      · {tierLabel(b.tier)}
+                      {b.is_founding ? " · founding" : ""}
+                      {!b.has_price_id && " · no stripe_price_id"}
+                    </li>
+                  ))}
+                </ul>
+                {!data.price_lookup_error && (
+                  <p className="mt-1 text-amber-700">
+                    Re-sync from live subscriptions:{" "}
+                    <code className="rounded bg-amber-100 px-1">
+                      python -m scripts.backfill_active_price_ids --apply
+                    </code>
+                  </p>
+                )}
+              </div>
+            )}
 
           {data.stripe_error && (
             <div className="rounded-md border border-amber-200 bg-amber-50/50 p-2 text-xs">

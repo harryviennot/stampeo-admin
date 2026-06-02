@@ -20,6 +20,13 @@ import {
   fetchTopBusinessesAllTime,
   fetchTopBusinessesDensity,
   fetchTrialCohorts,
+  fetchPlatformHealth,
+  fetchBusinessRetention,
+  fetchPaywallFunnel,
+  fetchPaywallCohorts,
+  fetchTopBusinessesRewards,
+  fetchTopBusinessesRepeat,
+  fetchTopBusinessesHealth,
   type BucketRangeParams,
   type CustomerSignupsByBizParams,
   type RangeParams,
@@ -152,5 +159,54 @@ export function useTopBusinessesDensity(limit: number = 10) {
   return useQuery({
     queryKey: adminKeys.stats.topBusinessesDensity(limit),
     queryFn: () => fetchTopBusinessesDensity(limit),
+  });
+}
+
+export function usePlatformHealth() {
+  return useQuery({
+    queryKey: adminKeys.stats.platformHealth,
+    queryFn: fetchPlatformHealth,
+  });
+}
+
+export function useBusinessRetention(weeks: number = 16) {
+  return useQuery({
+    queryKey: adminKeys.stats.businessRetention(weeks),
+    queryFn: () => fetchBusinessRetention(weeks),
+  });
+}
+
+export function usePaywallFunnel(weeks: number = 12) {
+  return useQuery({
+    queryKey: adminKeys.stats.paywallFunnel(weeks),
+    queryFn: () => fetchPaywallFunnel(weeks),
+  });
+}
+
+export function usePaywallCohorts(weeks: number = 12) {
+  return useQuery({
+    queryKey: adminKeys.stats.paywallCohorts(weeks),
+    queryFn: () => fetchPaywallCohorts(weeks),
+  });
+}
+
+export function useTopBusinessesRewards(limit: number = 10) {
+  return useQuery({
+    queryKey: adminKeys.stats.topBusinessesRewards(limit),
+    queryFn: () => fetchTopBusinessesRewards(limit),
+  });
+}
+
+export function useTopBusinessesRepeat(limit: number = 10) {
+  return useQuery({
+    queryKey: adminKeys.stats.topBusinessesRepeat(limit),
+    queryFn: () => fetchTopBusinessesRepeat(limit),
+  });
+}
+
+export function useTopBusinessesHealth(limit: number = 10) {
+  return useQuery({
+    queryKey: adminKeys.stats.topBusinessesHealth(limit),
+    queryFn: () => fetchTopBusinessesHealth(limit),
   });
 }
