@@ -78,7 +78,12 @@ export const adminKeys = {
   },
   emails: {
     list: ["emails", "list"] as const,
-    preview: (category: string, name: string, locale: "fr" | "en") =>
-      ["emails", "preview", category, name, locale] as const,
+    preview: (
+      category: string,
+      name: string,
+      locale: "fr" | "en",
+      variant?: string
+    ) => ["emails", "preview", category, name, locale, variant ?? ""] as const,
+    flows: ["emails", "flows"] as const,
   },
 };

@@ -1311,17 +1311,58 @@ export async function fetchEmailTemplates(): Promise<EmailTemplateRef[]> {
   return res.json();
 }
 
-/** Returns raw rendered HTML — write it into an iframe via `srcdoc`. */
+/** Returns raw rendered HTML — write it into an iframe via `srcdoc`.
+ * `extraParams` carries the parameterized-preview knobs (digest
+ * health/insight/action, nurture ns). */
 export async function fetchEmailPreviewHtml(
   category: string,
   name: string,
-  locale: "fr" | "en"
+  locale: "fr" | "en",
+  extraParams?: Record<string, string>
 ): Promise<string> {
   const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ locale, ...extraParams });
   const res = await fetch(
-    `${API_BASE_URL}/admin/emails/${category}/${name}?locale=${locale}`,
+    `${API_BASE_URL}/admin/emails/${category}/${name}?${params.toString()}`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());
   return res.text();
+}
+
+// ─── Email lifecycle flows ──────────────────────────────────────
+
+export interface EmailFlowStep {
+  day_offset: number | null;
+  label: string;
+  email_key: string;
+  preview: { category: string; name: string; ns?: string } | null;
+  format: "designed" | "plain";
+  category: string;
+  trigger?: string;
+  pillar?: string;
+  seasonal?: boolean;
+  deferred?: boolean;
+  note?: string;
+}
+
+export interface EmailFlow {
+  state: string;
+  title: string;
+  description: string;
+  entry_condition: string;
+  trigger: string;
+  anchor?: string;
+  cadence?: string;
+  cadence_days?: number;
+  steps: EmailFlowStep[];
+  transitions_to: string[];
+}
+
+export async function fetchEmailFlows(): Promise<EmailFlow[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/emails/flows`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.flows as EmailFlow[];
 }
