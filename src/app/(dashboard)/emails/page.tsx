@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   fetchEmailPreviewHtml,
   fetchEmailTemplates,
@@ -45,6 +46,14 @@ function EmailsPageInner() {
     localeParam === "en" ? "en" : "fr"
   );
 
+  // Variant knobs for the parameterized previews (digest tone / insight /
+  // action). Let reviewers see e.g. a "down" week without a live send.
+  const [health, setHealth] = useState<"up" | "steady" | "down">("up");
+  const [insight, setInsight] = useState<
+    "classic" | "segments" | "trend" | "milestone"
+  >("milestone");
+  const [action, setAction] = useState<string>("close_to_reward");
+
   const { data: templates, isLoading: templatesLoading } = useQuery({
     queryKey: adminKeys.emails.list,
     queryFn: fetchEmailTemplates,
@@ -68,13 +77,23 @@ function EmailsPageInner() {
     return { category, name };
   }, [templateParam]);
 
+  const templateKey = selected ? `${selected.category}/${selected.name}` : "";
+  const variantParams = useMemo<Record<string, string> | undefined>(() => {
+    if (templateKey === "lifecycle/weekly_digest")
+      return { health, insight, action } as Record<string, string>;
+    if (templateKey === "lifecycle/monthly_recap")
+      return { health } as Record<string, string>;
+    return undefined;
+  }, [templateKey, health, insight, action]);
+  const variantKey = variantParams ? JSON.stringify(variantParams) : "";
+
   const { data: html, isLoading: previewLoading } = useQuery({
     queryKey: selected
-      ? adminKeys.emails.preview(selected.category, selected.name, locale)
+      ? adminKeys.emails.preview(selected.category, selected.name, locale, variantKey)
       : ["emails", "preview", "none"],
     queryFn: () =>
       selected
-        ? fetchEmailPreviewHtml(selected.category, selected.name, locale)
+        ? fetchEmailPreviewHtml(selected.category, selected.name, locale, variantParams)
         : Promise.resolve(""),
     enabled: !!selected,
   });
@@ -133,6 +152,18 @@ function EmailsPageInner() {
           />
         </div>
       </header>
+
+      <div className="flex gap-1 border-b">
+        <span className="border-b-2 border-accent px-3 py-2 text-sm font-medium text-accent">
+          Previews
+        </span>
+        <Link
+          href="/emails/flows"
+          className="border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Flows
+        </Link>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="rounded-lg border bg-background">
@@ -195,6 +226,52 @@ function EmailsPageInner() {
                   {locale.toUpperCase()} · {previewLoading ? "loading…" : "ready"}
                 </span>
               </div>
+
+              {variantParams && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-muted/30 px-4 py-2">
+                  <ChipGroup
+                    label="Tone"
+                    value={health}
+                    options={[
+                      { value: "up", label: "Growth" },
+                      { value: "steady", label: "Steady" },
+                      { value: "down", label: "Down" },
+                    ]}
+                    onChange={(v) => setHealth(v as typeof health)}
+                  />
+                  {templateKey === "lifecycle/weekly_digest" && (
+                    <>
+                      <ChipGroup
+                        label="Insight"
+                        value={insight}
+                        options={[
+                          { value: "classic", label: "Classic" },
+                          { value: "segments", label: "Segments" },
+                          { value: "trend", label: "Trend" },
+                          { value: "milestone", label: "Milestone" },
+                        ]}
+                        onChange={(v) => setInsight(v as typeof insight)}
+                      />
+                      <ChipGroup
+                        label="Action"
+                        value={action}
+                        options={[
+                          { value: "event", label: "Event" },
+                          { value: "close_to_reward", label: "Close to reward" },
+                          { value: "at_risk", label: "At risk" },
+                          { value: "first_broadcast", label: "First broadcast" },
+                          { value: "acquisition", label: "Acquisition" },
+                          { value: "reward_distance", label: "Reward distance" },
+                          { value: "milestone", label: "Milestone" },
+                          { value: "generic", label: "Generic" },
+                        ]}
+                        onChange={setAction}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
+
               <iframe
                 ref={iframeRef}
                 title={`${selected.category}/${selected.name} (${locale})`}
@@ -204,6 +281,43 @@ function EmailsPageInner() {
             </div>
           )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+function ChipGroup({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+              value === opt.value
+                ? "border-accent bg-accent/10 font-medium text-accent"
+                : "border-border bg-background text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
     </div>
   );
