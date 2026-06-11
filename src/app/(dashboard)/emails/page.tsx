@@ -72,16 +72,21 @@ function EmailsPageInner() {
 
   const selected = useMemo<EmailTemplateRef | null>(() => {
     if (!templateParam) return null;
-    const [category, name] = templateParam.split("/");
+    // Split on the FIRST slash only: the name can contain a subfolder
+    // (e.g. "digest/weekly_digest"), which the backend serves via a :path param.
+    const idx = templateParam.indexOf("/");
+    if (idx < 0) return null;
+    const category = templateParam.slice(0, idx);
+    const name = templateParam.slice(idx + 1);
     if (!category || !name) return null;
     return { category, name };
   }, [templateParam]);
 
   const templateKey = selected ? `${selected.category}/${selected.name}` : "";
   const variantParams = useMemo<Record<string, string> | undefined>(() => {
-    if (templateKey === "lifecycle/weekly_digest")
+    if (templateKey === "lifecycle/digest/weekly_digest")
       return { health, insight, action } as Record<string, string>;
-    if (templateKey === "lifecycle/monthly_recap")
+    if (templateKey === "lifecycle/digest/monthly_recap")
       return { health } as Record<string, string>;
     return undefined;
   }, [templateKey, health, insight, action]);
@@ -239,7 +244,7 @@ function EmailsPageInner() {
                     ]}
                     onChange={(v) => setHealth(v as typeof health)}
                   />
-                  {templateKey === "lifecycle/weekly_digest" && (
+                  {templateKey === "lifecycle/digest/weekly_digest" && (
                     <>
                       <ChipGroup
                         label="Insight"
