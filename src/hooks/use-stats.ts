@@ -6,6 +6,7 @@ import {
   fetchBillingBreakdown,
   fetchBroadcastDeliverability,
   fetchCustomerSignupsByBusiness,
+  fetchCustomerSignupsTopPerBucket,
   fetchGlobalStats,
   fetchHeardFromStats,
   fetchInactiveSnapshot,
@@ -77,11 +78,24 @@ export function useTopBusinessesAllTime(limit: number = 10) {
 }
 
 export function useCustomerSignupsByBusiness(
-  params: CustomerSignupsByBizParams = {}
+  params: CustomerSignupsByBizParams = {},
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: adminKeys.stats.customerSignupsByBiz(params),
     queryFn: () => fetchCustomerSignupsByBusiness(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useCustomerSignupsTopPerBucket(
+  params: CustomerSignupsByBizParams = {},
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: adminKeys.stats.customerSignupsTopPerBucket(params),
+    queryFn: () => fetchCustomerSignupsTopPerBucket(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useRef, useState, useMemo, useEffect } from "react";
-import { CardDesign } from "@/types/design";
-import {
-  StampIconSvg,
-  StampIconType,
-} from "@/components/card/StampIconSvg";
+import React, { useRef, useState, useCallback, useMemo, useEffect } from "react";
+import Image from "next/image";
+import { CardDesign, CustomStampConfig } from "@/types/design";
+import { StampIconSvg, StampIconType } from "@/components/card/StampIconSvg";
 import {
   computeCardColors,
   getInitials,
   calculateStampLayout,
+  calculateStaggeredStampLayout,
+  customIconBoxSize,
+  resolveStampIconUrl,
+  CUSTOM_GRID_VPAD_SCALE,
+  OVERLAP_MAX_COUNT,
+  STAGGERED_MAX_COUNT,
 } from "@/lib/card-utils";
 
 // ============================================================================
@@ -17,12 +21,19 @@ import {
 // ============================================================================
 
 export interface WalletCardProps {
+  /** Card design configuration */
   design: Partial<CardDesign>;
+  /** Number of filled stamps (default: 3 for preview) */
   stamps?: number;
-  totalStamps?: number;
+  /** Override organization name from design */
   organizationName?: string;
+  /** Show QR code at bottom */
   showQR?: boolean;
+  /** Show secondary fields section */
   showSecondaryFields?: boolean;
+  /** Enable 3D mouse-tracking effect */
+  interactive3D?: boolean;
+  /** Additional class names */
   className?: string;
 }
 
@@ -38,9 +49,16 @@ interface StampGridProps {
   readonly rewardIcon: StampIconType;
   readonly containerWidth: number;
   readonly containerHeight: number;
+  /** Custom uploaded icons (STA-216). When set with at least one icon,
+   *  slots render the processed PNGs instead of circles — exactly what the
+   *  backend strip generator composites, so the preview cannot drift. */
+  readonly customConfig?: CustomStampConfig | null;
 }
 
-function StampGrid({
+const MIN_PADDING = 8; // 24/3, scaled for the ~375px preview container
+const SIDE_PADDING = 11; // 32/3 ≈ 11
+
+export function StampGrid({
   totalStamps,
   filledCount,
   colors,
@@ -48,18 +66,83 @@ function StampGrid({
   rewardIcon,
   containerWidth,
   containerHeight,
+  customConfig,
 }: StampGridProps) {
-  const layout = useMemo(() => {
-    return calculateStampLayout(totalStamps, containerWidth, containerHeight, 8, 11);
-  }, [totalStamps, containerWidth, containerHeight]);
+  const useCustom = !!customConfig && customConfig.icons.length > 0;
+  // Mirror of the backend fallback: staggered carries 2..16 stamps,
+  // overlap up to 24 (it gains a third depth level past 16)
+  const wantedArrangement = useCustom ? customConfig.arrangement : "straight";
+  const bandMax =
+    wantedArrangement === "overlap" ? OVERLAP_MAX_COUNT : STAGGERED_MAX_COUNT;
+  const arrangement: "straight" | "staggered" | "overlap" =
+    (wantedArrangement === "staggered" || wantedArrangement === "overlap") &&
+    totalStamps >= 2 &&
+    totalStamps <= bandMax
+      ? wantedArrangement
+      : "straight";
 
+  // Calculate layout using the same algorithm as the backend
+  const layout = useMemo(() => {
+    if (arrangement === "staggered" || arrangement === "overlap") {
+      return calculateStaggeredStampLayout(
+        totalStamps,
+        containerWidth,
+        containerHeight,
+        SIDE_PADDING,
+        MIN_PADDING,
+        arrangement === "overlap"
+      );
+    }
+    return calculateStampLayout(
+      totalStamps,
+      containerWidth,
+      containerHeight,
+      MIN_PADDING,
+      SIDE_PADDING,
+      useCustom ? CUSTOM_GRID_VPAD_SCALE : 1
+    );
+  }, [arrangement, totalStamps, containerWidth, containerHeight, useCustom]);
+
+  // Calculate icon size (60% of diameter, matching backend)
   const iconSize = Math.max(layout.radius * 1.2, 12);
+  const customBox = customIconBoxSize(layout, MIN_PADDING, arrangement);
 
   return (
     <div className="relative w-full" style={{ height: containerHeight }}>
       {layout.positions.map((pos) => {
         const isFilled = pos.globalIndex < filledCount;
         const isLast = pos.globalIndex === totalStamps - 1;
+
+        if (useCustom) {
+          const src = resolveStampIconUrl(
+            customConfig,
+            pos.globalIndex,
+            totalStamps,
+            isFilled
+          );
+          if (!src) return null;
+          return (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={`stamp-${pos.globalIndex}`}
+              src={src}
+              alt=""
+              className="absolute object-contain transition-all duration-300"
+              style={{
+                width: customBox,
+                height: customBox,
+                left: pos.centerX - customBox / 2,
+                top: pos.centerY - customBox / 2,
+                // Deeper band levels overlap shallower ones, matching the
+                // backend compositing order.
+                zIndex: pos.row + 1,
+                // Empty slots fade by the design's empty_opacity — CSS opacity
+                // is the same alpha multiply the strip generator applies.
+                opacity: isFilled ? 1 : (customConfig.empty_opacity ?? 100) / 100,
+              }}
+            />
+          );
+        }
 
         return (
           <div
@@ -98,18 +181,22 @@ interface SecondaryFieldsRowProps {
 
 function SecondaryFieldsRow({ fields, colors }: SecondaryFieldsRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [fontSize, setFontSize] = useState(14);
+  const [fontSize, setFontSize] = useState(14); // Start with text-sm equivalent
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const container = containerRef.current;
     const checkOverflow = () => {
+      // Reset to max size first
       setFontSize(14);
+
+      // Use requestAnimationFrame to ensure DOM has updated
       requestAnimationFrame(() => {
         if (!container) return;
         const containerWidth = container.offsetWidth;
         const contentWidth = container.scrollWidth;
+
         if (contentWidth > containerWidth) {
           const scale = containerWidth / contentWidth;
           const newSize = Math.max(10, Math.floor(14 * scale));
@@ -174,19 +261,28 @@ function FakeQRCode({ size = 80 }: { size?: number }) {
   };
 
   const isFinderInner = (row: number, col: number) => {
-    const checkInner = (r: number, c: number, startR: number, startC: number) => {
+    const checkInner = (
+      r: number,
+      c: number,
+      startR: number,
+      startC: number
+    ) => {
       const relR = r - startR;
       const relC = c - startC;
       if (relR >= 1 && relR <= 5 && relC >= 1 && relC <= 5) {
-        if (relR >= 2 && relR <= 4 && relC >= 2 && relC <= 4) return "black";
+        if (relR >= 2 && relR <= 4 && relC >= 2 && relC <= 4) {
+          return "black";
+        }
         return "white";
       }
       return "black";
     };
 
     if (row < 7 && col < 7) return checkInner(row, col, 0, 0);
-    if (row < 7 && col >= modules - 7) return checkInner(row, col, 0, modules - 7);
-    if (row >= modules - 7 && col < 7) return checkInner(row, col, modules - 7, 0);
+    if (row < 7 && col >= modules - 7)
+      return checkInner(row, col, 0, modules - 7);
+    if (row >= modules - 7 && col < 7)
+      return checkInner(row, col, modules - 7, 0);
     return null;
   };
 
@@ -196,17 +292,29 @@ function FakeQRCode({ size = 80 }: { size?: number }) {
   };
 
   const getModuleColor = (row: number, col: number) => {
-    if (row === 6 && col >= 8 && col <= modules - 9) return col % 2 === 0 ? "#000" : "#fff";
-    if (col === 6 && row >= 8 && row <= modules - 9) return row % 2 === 0 ? "#000" : "#fff";
+    if (row === 6 && col >= 8 && col <= modules - 9) {
+      return col % 2 === 0 ? "#000" : "#fff";
+    }
+    if (col === 6 && row >= 8 && row <= modules - 9) {
+      return row % 2 === 0 ? "#000" : "#fff";
+    }
+
     if (isFinderPattern(row, col)) {
       const inner = isFinderInner(row, col);
       return inner === "white" ? "#fff" : "#000";
     }
+
     if (
-      (row === 7 && col < 8) || (col === 7 && row < 8) ||
-      (row === 7 && col >= modules - 8) || (col === modules - 8 && row < 8) ||
-      (row === modules - 8 && col < 8) || (col === 7 && row >= modules - 8)
-    ) return "#fff";
+      (row === 7 && col < 8) ||
+      (col === 7 && row < 8) ||
+      (row === 7 && col >= modules - 8) ||
+      (col === modules - 8 && row < 8) ||
+      (row === modules - 8 && col < 8) ||
+      (col === 7 && row >= modules - 8)
+    ) {
+      return "#fff";
+    }
+
     const seed = row * modules + col;
     return seededRandom(seed) > 0.5 ? "#000" : "#fff";
   };
@@ -217,7 +325,14 @@ function FakeQRCode({ size = 80 }: { size?: number }) {
       const color = getModuleColor(row, col);
       if (color === "#000") {
         rects.push(
-          <rect key={`${row}-${col}`} x={col * moduleSize} y={row * moduleSize} width={moduleSize} height={moduleSize} fill="#000" />
+          <rect
+            key={`${row}-${col}`}
+            x={col * moduleSize}
+            y={row * moduleSize}
+            width={moduleSize}
+            height={moduleSize}
+            fill="#000"
+          />
         );
       }
     }
@@ -231,6 +346,47 @@ function FakeQRCode({ size = 80 }: { size?: number }) {
   );
 }
 
+// ============================================================================
+// 3D Effect Hook
+// ============================================================================
+
+function use3DEffect(enabled: boolean) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [rotate, setRotate] = useState({ x: 0, y: 0 });
+  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!enabled || !cardRef.current) return;
+
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const rotateY = ((x - centerX) / centerX) * 4;
+      const rotateX = ((centerY - y) / centerY) * 4;
+
+      const glareX = (x / rect.width) * 100;
+      const glareY = (y / rect.height) * 100;
+
+      setRotate({ x: rotateX, y: rotateY });
+      setGlare({ x: glareX, y: glareY, opacity: 1 });
+    },
+    [enabled]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    if (!enabled) return;
+    setRotate({ x: 0, y: 0 });
+    setGlare((prev) => ({ ...prev, opacity: 0 }));
+  }, [enabled]);
+
+  return { cardRef, rotate, glare, handleMouseMove, handleMouseLeave };
+}
+
 const STRIP_ASPECT_RATIO = 1125 / 432;
 
 function StampGridContainer({
@@ -239,6 +395,7 @@ function StampGridContainer({
   colors,
   stampIcon,
   rewardIcon,
+  customConfig,
 }: Omit<StampGridProps, "containerWidth" | "containerHeight">) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -253,15 +410,22 @@ function StampGridContainer({
         }
       };
 
-      const resizeObserver = new ResizeObserver(() => updateDimensions());
+      const resizeObserver = new ResizeObserver(() => {
+        updateDimensions();
+      });
       resizeObserver.observe(containerRef.current);
-      updateDimensions();
+      updateDimensions(); // Initial calculation
+
       return () => resizeObserver.disconnect();
     }
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ aspectRatio: `${STRIP_ASPECT_RATIO}` }}>
+    <div
+      ref={containerRef}
+      className="relative w-full"
+      style={{ aspectRatio: `${STRIP_ASPECT_RATIO}` }}
+    >
       {dimensions.width > 0 && dimensions.height > 0 && (
         <StampGrid
           totalStamps={totalStamps}
@@ -269,6 +433,7 @@ function StampGridContainer({
           colors={colors}
           stampIcon={stampIcon}
           rewardIcon={rewardIcon}
+          customConfig={customConfig}
           containerWidth={dimensions.width}
           containerHeight={dimensions.height}
         />
@@ -284,34 +449,74 @@ function StampGridContainer({
 export function WalletCard({
   design,
   stamps = 3,
-  totalStamps: totalStampsProp,
   organizationName,
   showQR = true,
   showSecondaryFields = true,
+  interactive3D = false,
   className = "",
 }: WalletCardProps) {
+  const { cardRef, rotate, glare, handleMouseMove, handleMouseLeave } =
+    use3DEffect(interactive3D);
+
   const displayName = organizationName || design.organization_name || "";
   const initials = getInitials(displayName);
-  const totalStamps = totalStampsProp ?? design.total_stamps ?? 10;
+  const totalStamps = design.total_stamps ?? 10;
   const colors = computeCardColors(design);
 
   const stampIcon = (design.stamp_icon || "checkmark") as StampIconType;
+  const customConfig =
+    design.stamp_icon_mode === "custom" ? design.custom_stamp_config : null;
   const rewardIcon = (design.reward_icon || "gift") as StampIconType;
 
   const secondaryFields = design.secondary_fields || [];
 
+  const cardStyle = interactive3D
+    ? {
+        transformStyle: "preserve-3d" as const,
+        transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
+        transition:
+          "transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s ease",
+        boxShadow: `
+          ${-rotate.y * 1.5}px ${rotate.x * 1.5 + 8}px 24px rgba(0,0,0,0.12),
+          0 20px 50px rgba(0,0,0,0.08)
+        `,
+      }
+    : {
+        boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
+      };
+
   return (
-    <div className={`relative w-full h-full ${className}`}>
+    <div
+      className={`relative w-full h-full ${className}`}
+      style={interactive3D ? { perspective: "1200px" } : undefined}
+    >
       <div
-        className="relative w-full h-full rounded-2xl"
-        style={{ boxShadow: "0 10px 40px rgba(0,0,0,0.12)" }}
+        ref={cardRef}
+        className="relative w-full h-full cursor-pointer rounded-2xl"
+        style={cardStyle}
+        onMouseMove={interactive3D ? handleMouseMove : undefined}
+        onMouseLeave={interactive3D ? handleMouseLeave : undefined}
       >
+        {/* Card Content Layer */}
         <div
-          className="absolute inset-0 rounded-2xl overflow-hidden transition-all duration-300"
-          style={{ backgroundColor: colors.bgHex }}
+          className="absolute inset-0 rounded-2xl overflow-hidden transition-all duration-300 p-2"
+          style={{
+            background: `linear-gradient(135deg, ${colors.bgGradientFrom}, ${colors.bgGradientTo})`,
+          }}
         >
+          {/* Subtle gradient overlay */}
+          <div
+            className="absolute inset-0 transition-opacity duration-300"
+            style={{
+              background: colors.isLightBg
+                ? "linear-gradient(to bottom right, rgba(255,255,255,0.4), transparent, rgba(0,0,0,0.05))"
+                : "linear-gradient(to bottom right, rgba(255,255,255,0.1), transparent, rgba(0,0,0,0.2))",
+            }}
+          />
+
+          {/* Content Layout */}
           <div className="relative h-full px-0 py-0 flex flex-col z-10">
-            {/* Header */}
+            {/* Header: Logo + Business Name */}
             <div className="flex justify-between items-center px-2.5 py-2">
               <div className="flex items-center gap-2">
                 {design.logo_url ? (
@@ -326,24 +531,28 @@ export function WalletCard({
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 flex-shrink-0"
                     style={{ backgroundColor: colors.accentHex }}
                   >
-                    <span className="text-white font-bold text-xs">{initials}</span>
+                    <span className="text-white font-bold text-xs">
+                      {initials}
+                    </span>
                   </div>
                 )}
-                <div className="min-w-0">
-                  <h3
-                    className="font-semibold text-sm tracking-tight leading-tight truncate transition-colors duration-300"
-                    style={{ color: colors.mutedTextColor }}
-                  >
-                    {displayName}
-                  </h3>
-                </div>
+                {design.organization_name && (
+                  <div className="min-w-0">
+                    <p
+                      className="font-semibold text-sm tracking-tight leading-tight truncate transition-colors duration-300"
+                      style={{ color: colors.mutedTextColor }}
+                    >
+                      {design.organization_name}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="text-right items-center">
                 <div
                   className="text-[8px] font-bold uppercase tracking-wider transition-colors duration-300"
                   style={{ color: colors.mutedTextColor }}
                 >
-                  stamps
+                  STAMPS
                 </div>
                 <div
                   className="text-md font-medium flex items-baseline gap-1 justify-end transition-colors duration-300 leading-tight"
@@ -356,14 +565,18 @@ export function WalletCard({
 
             {/* Stamps Grid */}
             <div className="relative flex items-start justify-center py-2">
+              {/* Strip background layer */}
               {design.strip_background_url && (
-                <div className="absolute inset-0 rounded-lg overflow-hidden" style={{ zIndex: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                <div
+                  className="absolute inset-0 rounded-lg overflow-hidden"
+                  style={{ zIndex: 0 }}
+                >
+                  <Image
                     src={design.strip_background_url}
                     alt=""
-                    className="w-full h-full object-cover"
-                    style={{ opacity: (design.strip_background_opacity ?? 40) / 100 }}
+                    fill
+                    className="object-cover opacity-40"
+                    unoptimized
                   />
                 </div>
               )}
@@ -373,30 +586,51 @@ export function WalletCard({
                 colors={colors}
                 stampIcon={stampIcon}
                 rewardIcon={rewardIcon}
+                customConfig={customConfig}
               />
             </div>
 
-            {/* Secondary Fields */}
+            {/* Secondary Fields - horizontal row like real Apple Wallet */}
             {showSecondaryFields && secondaryFields.length > 0 && (
-              <SecondaryFieldsRow fields={secondaryFields.slice(0, 4)} colors={colors} />
+              <SecondaryFieldsRow
+                fields={secondaryFields.slice(0, 4)}
+                colors={colors}
+              />
             )}
 
             {/* QR Code */}
             {showQR && (
-              <div className="mt-auto pb-2 flex justify-center" style={{ borderColor: colors.emptyStampBorder }}>
+              <div
+                className="mt-auto pb-2 flex justify-center"
+                style={{ borderColor: colors.emptyStampBorder }}
+              >
                 <div className="bg-white p-2 rounded-lg">
-                  <FakeQRCode size={80} />
+                  <FakeQRCode size={100} />
                 </div>
               </div>
             )}
           </div>
         </div>
 
+        {/* Glare Effect (3D only) */}
+        {interactive3D && (
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none z-20"
+            style={{
+              background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 60%)`,
+              opacity: glare.opacity,
+              transition: "opacity 0.5s ease",
+            }}
+          />
+        )}
+
         {/* Border */}
         <div
           className="absolute inset-0 rounded-2xl pointer-events-none z-30"
           style={{
-            boxShadow: `inset 0 0 0 1px ${colors.isLightBg ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
+            boxShadow: `inset 0 0 0 1px ${
+              colors.isLightBg ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"
+            }`,
           }}
         />
       </div>
