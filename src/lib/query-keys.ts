@@ -89,4 +89,9 @@ export const adminKeys = {
     ) => ["emails", "preview", category, name, locale, variant ?? ""] as const,
     flows: ["emails", "flows"] as const,
   },
+  changelog: {
+    all: ["changelog"] as const,
+    draft: ["changelog", "draft"] as const,
+    releases: ["changelog", "releases"] as const,
+  },
 };

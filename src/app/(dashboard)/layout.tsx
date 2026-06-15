@@ -16,6 +16,7 @@ const navLinks = [
   { href: "/users", label: "Users" },
   { href: "/certificates", label: "Certificates" },
   { href: "/emails", label: "Emails" },
+  { href: "/changelog", label: "Changelog" },
 ];
 
 function isActive(pathname: string, href: string) {
