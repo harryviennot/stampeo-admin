@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchPassTypeIds,
   fetchPoolStats,
+  fetchReclaimCandidates,
+  releasePassTypeId,
   revokePassTypeId,
   uploadCertificate,
 } from "@/lib/api";
@@ -23,9 +25,17 @@ export function usePassTypeIds() {
   });
 }
 
+export function useReclaimCandidates() {
+  return useQuery({
+    queryKey: adminKeys.certs.reclaimCandidates,
+    queryFn: fetchReclaimCandidates,
+  });
+}
+
 function invalidateCerts(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: adminKeys.certs.pool });
   qc.invalidateQueries({ queryKey: adminKeys.certs.passTypeIds });
+  qc.invalidateQueries({ queryKey: adminKeys.certs.reclaimCandidates });
   qc.invalidateQueries({ queryKey: adminKeys.stats.overview });
 }
 
@@ -42,5 +52,16 @@ export function useRevokePassTypeId() {
   return useMutation({
     mutationFn: (id: string) => revokePassTypeId(id),
     onSuccess: () => invalidateCerts(qc),
+  });
+}
+
+export function useReleasePassTypeId() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => releasePassTypeId(id),
+    onSuccess: (_data, _id, _ctx) => {
+      invalidateCerts(qc);
+      qc.invalidateQueries({ queryKey: ["businesses"] });
+    },
   });
 }

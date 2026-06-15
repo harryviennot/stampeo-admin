@@ -71,6 +71,7 @@ export const adminKeys = {
   certs: {
     pool: ["certs", "pool"] as const,
     passTypeIds: ["certs", "passTypeIds"] as const,
+    reclaimCandidates: ["certs", "reclaimCandidates"] as const,
   },
   accessSessions: {
     all: ["accessSessions"] as const,
