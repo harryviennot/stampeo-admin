@@ -35,9 +35,12 @@ import {
 import {
   useCertPool,
   usePassTypeIds,
+  useReclaimCandidates,
+  useReleasePassTypeId,
   useRevokePassTypeId,
   useUploadCertificate,
 } from "@/hooks/use-certificates";
+import { useGlobalStats } from "@/hooks/use-stats";
 import { StatCard } from "@/components/stat-card";
 import {
   ShieldOff,
@@ -47,6 +50,8 @@ import {
   CheckCircle,
   XCircle,
   BookOpen,
+  RotateCcw,
+  Recycle,
 } from "lucide-react";
 
 const statusConfig = {
@@ -64,10 +69,29 @@ const statusConfig = {
   },
 } as const;
 
+const segmentConfig = {
+  A: {
+    label: "A · abandoned",
+    className: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  },
+  B1: {
+    label: "B1 · trial churn",
+    className: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  B2: {
+    label: "B2 · lapsed payer",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
+  },
+} as const;
+
 export default function CertificatesPage() {
   const { data: passTypeIds = [], isPending: loading } = usePassTypeIds();
   const { data: stats, isPending: statsLoading } = useCertPool();
+  const { data: globalStats, isPending: globalLoading } = useGlobalStats();
+  const { data: candidates = [], isPending: candidatesLoading } =
+    useReclaimCandidates();
   const revoke = useRevokePassTypeId();
+  const release = useReleasePassTypeId();
   const upload = useUploadCertificate();
   const [lastUploaded, setLastUploaded] = useState<string | null>(null);
 
@@ -83,6 +107,21 @@ export default function CertificatesPage() {
         }),
     });
   };
+
+  const handleRelease = (id: string, identifier: string) => {
+    release.mutate(id, {
+      onSuccess: () =>
+        toast.success("Certificate released", {
+          description: `${identifier} is back in the pool, reclaimable by its owner until reassigned`,
+        }),
+      onError: (err) =>
+        toast.error("Release failed", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
+  };
+
+  const releasingId = release.isPending ? release.variables : null;
 
   const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -143,6 +182,22 @@ export default function CertificatesPage() {
           loading={statsLoading}
           icon={<XCircle className="h-4 w-4" />}
           badgeClass="bg-red-100 text-red-700"
+        />
+        <StatCard
+          label="Reclaimable"
+          value={globalStats?.certs_reclaimable}
+          loading={globalLoading}
+          icon={<Recycle className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info="Released certs sitting in the pool that still remember their previous owner. If that business reactivates before the cert is reassigned, it gets its exact cert back and installed cards keep working."
+        />
+        <StatCard
+          label="Reclaim candidates"
+          value={globalStats?.certs_reclaim_candidates}
+          loading={globalLoading}
+          icon={<RotateCcw className="h-4 w-4" />}
+          badgeClass="bg-amber-100 text-amber-700"
+          info="Inactive businesses (suspended or lapsed, not founding partners) that still hold a cert. The sweep warns and eventually releases these. See the table below."
         />
       </div>
 
@@ -331,6 +386,162 @@ export default function CertificatesPage() {
                             Revoked
                           </span>
                         )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reclaim candidates */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5" />
+            Reclaim candidates
+          </CardTitle>
+          <CardDescription>
+            Inactive businesses still holding a cert. Segment A (no customers)
+            auto-releases; B1/B2 are warned at T-30 / T-14, then released after
+            both warnings. Use Release to approve early or override.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {candidatesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : candidates.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No reclaim candidates. Every assigned cert belongs to an active or
+              protected business.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Business</TableHead>
+                  <TableHead>Segment</TableHead>
+                  <TableHead>Inactive</TableHead>
+                  <TableHead>Release</TableHead>
+                  <TableHead>Warnings</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {candidates.map((c) => {
+                  const seg = segmentConfig[c.segment] ?? segmentConfig.A;
+                  const overdue = c.days_until_release <= 0;
+                  return (
+                    <TableRow key={c.pass_type_id}>
+                      <TableCell>
+                        <div className="text-sm font-medium">
+                          {c.business_name ?? "—"}
+                        </div>
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {c.identifier}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={seg.className}>
+                          {seg.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {c.days_since}d
+                        <span className="block text-xs text-muted-foreground">
+                          since {new Date(c.anchor_date).toLocaleDateString()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <span className={overdue ? "font-medium text-red-600" : ""}>
+                          {overdue ? "overdue" : `in ${c.days_until_release}d`}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {new Date(c.release_date).toLocaleDateString()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {c.segment === "A" ? (
+                          <span className="text-muted-foreground">none (auto)</span>
+                        ) : c.warnings_sent.length === 0 ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <span className="font-medium">
+                            {c.warnings_sent
+                              .map((w) => `T-${w.replace("t", "")}`)
+                              .sort()
+                              .reverse()
+                              .join(", ")}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {c.eligible_now ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-100 text-amber-700 border-amber-200"
+                          >
+                            Eligible now
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            Waiting
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={releasingId === c.pass_type_id}
+                            >
+                              {releasingId === c.pass_type_id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Recycle className="h-4 w-4" />
+                              )}
+                              Release
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Release certificate
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Release <strong>{c.identifier}</strong> from{" "}
+                                <strong>{c.business_name ?? "this business"}</strong>{" "}
+                                back into the pool?
+                                {c.ever_had_customers && (
+                                  <>
+                                    {" "}
+                                    This business had customers. The cert stays
+                                    reclaimable by them until it is reassigned to
+                                    someone else, after which their installed cards
+                                    can no longer be updated.
+                                  </>
+                                )}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  handleRelease(c.pass_type_id, c.identifier)
+                                }
+                              >
+                                Release
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   );

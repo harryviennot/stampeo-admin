@@ -11,6 +11,7 @@ import {
   Ghost,
   Gift,
   Repeat,
+  RotateCcw,
   ShieldCheck,
   Skull,
   Store,
@@ -453,6 +454,23 @@ export default function DashboardPage() {
               : "bg-emerald-100 text-emerald-700"
           }
           info="Unassigned Apple Pass Type IDs in the pool. Each new business that creates a card claims one. Ops gets an email alert when this drops below 50; if it hits 0, new signups can't issue wallet passes."
+        />
+        <StatCard
+          label="Reclaim candidates"
+          value={stats?.certs_reclaim_candidates}
+          loading={statsPending}
+          icon={<RotateCcw className="h-4 w-4" />}
+          subValue={
+            stats
+              ? { current: stats.certs_reclaimable, label: "reclaimable in pool" }
+              : undefined
+          }
+          badgeClass={
+            stats && stats.certs_reclaim_candidates > 0
+              ? "bg-amber-100 text-amber-700"
+              : "bg-emerald-100 text-emerald-700"
+          }
+          info="Inactive businesses (suspended/lapsed, not founding partners) still holding a cert. The daily sweep warns then releases these back to the pool. Manage them on the Certificates page."
         />
       </div>
 

@@ -13,6 +13,7 @@ import {
   FileText,
   Globe,
   Loader2,
+  Recycle,
   ShieldCheck,
   Sparkles,
   Users,
@@ -21,6 +22,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -28,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useReleasePassTypeId } from "@/hooks/use-certificates";
 import { WalletCard } from "@/components/card/WalletCard";
 import { ScaledCardWrapper } from "@/components/card/ScaledCardWrapper";
 import { ResellerBadge } from "@/components/business-utils";
@@ -385,8 +398,41 @@ function DesignTab({ businessId }: { businessId: string }) {
   );
 }
 
+const RECLAIM_SEGMENT_LABELS: Record<string, string> = {
+  A: "A · abandoned (no customers)",
+  B1: "B1 · trial churn (never paid)",
+  B2: "B2 · lapsed payer",
+};
+
+function ReclaimRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
+      <div className="text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
 function CertificateTab({ businessId }: { businessId: string }) {
   const { data: stats, isPending } = useBusinessStats(businessId);
+  const release = useReleasePassTypeId();
+  const cert = stats?.certificate;
+  const reclaim = stats?.reclaim;
+
+  const handleRelease = () => {
+    if (!cert) return;
+    release.mutate(cert.id, {
+      onSuccess: () =>
+        toast.success("Certificate released", {
+          description: `${cert.identifier} is back in the pool`,
+        }),
+      onError: (err) =>
+        toast.error("Release failed", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -400,33 +446,143 @@ function CertificateTab({ businessId }: { businessId: string }) {
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : stats?.certificate ? (
-          <div className="space-y-3">
+        ) : cert ? (
+          <div className="space-y-4">
             <div>
               <div className="text-xs text-muted-foreground mb-0.5">
                 Identifier
               </div>
               <div className="font-mono text-sm font-medium">
-                {stats.certificate.identifier}
+                {cert.identifier}
               </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground mb-0.5">
-                Status
-              </div>
+              <div className="text-xs text-muted-foreground mb-0.5">Status</div>
               <Badge
                 variant="outline"
                 className={
-                  stats.certificate.status === "assigned"
+                  cert.status === "assigned"
                     ? "bg-blue-100 text-blue-700 border-blue-200"
-                    : stats.certificate.status === "revoked"
+                    : cert.status === "revoked"
                       ? "bg-red-100 text-red-700 border-red-200"
                       : "bg-emerald-100 text-emerald-700 border-emerald-200"
                 }
               >
-                {stats.certificate.status}
+                {cert.status}
               </Badge>
             </div>
+
+            {reclaim?.is_candidate && reclaim.segment ? (
+              <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                    Reclaim status
+                  </span>
+                  {reclaim.eligible_now ? (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-100 text-amber-700 border-amber-200"
+                    >
+                      Eligible now
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Waiting</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <ReclaimRow
+                    label="Segment"
+                    value={
+                      RECLAIM_SEGMENT_LABELS[reclaim.segment] ?? reclaim.segment
+                    }
+                  />
+                  <ReclaimRow
+                    label="Ever paid"
+                    value={reclaim.ever_paid ? "Yes" : "No"}
+                  />
+                  <ReclaimRow
+                    label="Inactive"
+                    value={
+                      reclaim.days_since != null ? `${reclaim.days_since}d` : "—"
+                    }
+                  />
+                  <ReclaimRow
+                    label="Release"
+                    value={
+                      reclaim.days_until_release == null ? (
+                        "—"
+                      ) : reclaim.days_until_release <= 0 ? (
+                        <span className="text-red-600">overdue</span>
+                      ) : (
+                        `in ${reclaim.days_until_release}d`
+                      )
+                    }
+                  />
+                  <ReclaimRow
+                    label="Warnings sent"
+                    value={
+                      reclaim.segment === "A"
+                        ? "none (auto)"
+                        : reclaim.warnings_sent.length === 0
+                          ? "—"
+                          : reclaim.warnings_sent
+                              .map((w) => `T-${w.replace("t", "")}`)
+                              .sort()
+                              .reverse()
+                              .join(", ")
+                    }
+                  />
+                  <ReclaimRow
+                    label="Release date"
+                    value={
+                      reclaim.release_date
+                        ? new Date(reclaim.release_date).toLocaleDateString()
+                        : "—"
+                    }
+                  />
+                </div>
+              </div>
+            ) : reclaim ? (
+              <p className="text-xs text-muted-foreground">
+                Protected from reclaim (active / trial / founding partner).
+              </p>
+            ) : null}
+
+            {cert.status === "assigned" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={release.isPending}
+                  >
+                    {release.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Recycle className="h-4 w-4" />
+                    )}
+                    Release to pool
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Release certificate</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Release <strong>{cert.identifier}</strong> back into the
+                      pool? It stays reclaimable by this business until reassigned
+                      to someone else, after which installed cards can no longer be
+                      updated.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRelease}>
+                      Release
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-4">
