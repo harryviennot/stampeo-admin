@@ -33,6 +33,15 @@
 
   --destructive: #dc2626;
 
+  /* Chart palette — referenced as var(--chart-N) by every dashboard chart.
+     Without these, var(--color-*) resolves to an invalid value: bar fills fall
+     back to black and line strokes fall back to none (invisible). */
+  --chart-1: #4f46e5; /* indigo */
+  --chart-2: #10b981; /* emerald */
+  --chart-3: #f59e0b; /* amber */
+  --chart-4: #06b6d4; /* cyan */
+  --chart-5: #f43f5e; /* rose */
+
   --radius: 0.625rem;
 }
 
@@ -59,6 +68,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

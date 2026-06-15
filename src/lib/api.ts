@@ -84,6 +84,11 @@ export interface Business {
   owner_email: string | null;
   owner_phone: string | null;
   owner_is_reseller: boolean;
+  // Best-effort country (primary location address, else owner phone prefix).
+  // country_code is ISO-2; the UI derives flag + name from it.
+  country?: string | null;
+  country_code?: string | null;
+  country_source?: "location" | "phone" | null;
   activated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -340,23 +345,25 @@ export interface GlobalStats {
   pending_businesses: number;
   suspended_businesses: number;
   total_customers: number;
-  customers_this_month: number;
-  customers_last_month: number;
+  customers_current_30d: number;
+  customers_prior_30d: number;
   total_stamps: number;
-  stamps_this_month: number;
-  stamps_last_month: number;
+  stamps_current_30d: number;
+  stamps_prior_30d: number;
   total_rewards_redeemed: number;
+  rewards_current_30d: number;
+  rewards_prior_30d: number;
   certs_available: number;
   certs_assigned: number;
 }
 
 export interface BusinessStats {
   total_customers: number;
-  customers_this_month: number;
-  customers_last_month: number;
+  customers_current_30d: number;
+  customers_prior_30d: number;
   total_stamps: number;
-  stamps_this_month: number;
-  stamps_last_month: number;
+  stamps_current_30d: number;
+  stamps_prior_30d: number;
   total_rewards: number;
   active_design: CardDesign | null;
   certificate: {
@@ -434,6 +441,10 @@ export interface SetupWizardStuckStep {
 export interface SetupWizardFunnelResponse {
   started: number;
   completed: number;
+  // Card-upfront cohort: businesses requiring a card upfront, and how many of
+  // them attached one (have a Stripe subscription). Drives the terminal bar.
+  card_upfront_started: number;
+  card_attached: number;
   steps: SetupWizardFunnelStep[];
   // In-progress businesses bucketed by where their last_step is parked.
   stuck: SetupWizardStuckStep[];
@@ -641,6 +652,35 @@ export async function fetchCustomerSignupsByBusiness(
   const qs = buildQuery(params);
   const res = await fetch(
     `${API_BASE_URL}/admin/stats/customer-signups-by-business${qs}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export interface CustomerSignupsTopPerBucketSlot {
+  rank: number;
+  business_id: string;
+  name: string;
+  count: number;
+}
+
+export interface CustomerSignupsTopPerBucket {
+  buckets: Array<{
+    period_start: string;
+    slots: CustomerSignupsTopPerBucketSlot[];
+    other: number;
+    total: number;
+  }>;
+}
+
+export async function fetchCustomerSignupsTopPerBucket(
+  params: CustomerSignupsByBizParams = {}
+): Promise<CustomerSignupsTopPerBucket> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(
+    `${API_BASE_URL}/admin/stats/customer-signups-top-per-bucket${qs}`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());

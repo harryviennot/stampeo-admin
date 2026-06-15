@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Award } from "lucide-react";
 import {
   Bar,
@@ -18,7 +18,10 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { DeltaBadge } from "@/components/delta-badge";
+import { SegmentedToggle } from "@/components/segmented-toggle";
 import { useTimeseries } from "@/hooks/use-stats";
+
+type Mode = "weekly" | "daily";
 
 const config: ChartConfig = {
   stamps_added: { label: "Stamps", color: "var(--chart-3)" },
@@ -26,23 +29,32 @@ const config: ChartConfig = {
   stamps_trend: { label: "Stamps (4w avg)", color: "var(--chart-1)" },
 };
 
-function formatWeek(iso: string) {
+function formatBucket(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });
 }
 
-function wowDelta(current: number, previous: number): number | null {
+function delta(current: number, previous: number): number | null {
   if (previous <= 0) return null;
   return Math.round(((current - previous) / previous) * 100);
 }
 
 export function StampsChart() {
-  const { data, isPending } = useTimeseries({ bucket: "week", range: "12w" });
+  const [mode, setMode] = useState<Mode>("weekly");
+  const isDaily = mode === "daily";
+
+  const { data, isPending } = useTimeseries(
+    isDaily
+      ? { bucket: "day", range: "30d" }
+      : { bucket: "week", range: "12w" }
+  );
   const buckets = data?.buckets ?? [];
 
+  // 4-week rolling average only makes sense on weekly buckets.
   const chartData = useMemo(() => {
+    if (isDaily) return buckets;
     return buckets.map((b, i) => {
       const windowStart = Math.max(0, i - 3);
       const slice = buckets.slice(windowStart, i + 1);
@@ -50,35 +62,40 @@ export function StampsChart() {
         slice.reduce((s, x) => s + x.stamps_added, 0) / (slice.length || 1);
       return { ...b, stamps_trend: Math.round(avg) };
     });
-  }, [buckets]);
+  }, [buckets, isDaily]);
 
   const last = buckets[buckets.length - 1];
   const prev = buckets[buckets.length - 2];
-  const stampsDelta = last && prev ? wowDelta(last.stamps_added, prev.stamps_added) : null;
+  const stampsDelta = last && prev ? delta(last.stamps_added, prev.stamps_added) : null;
   const redemptionsDelta =
-    last && prev ? wowDelta(last.redemptions, prev.redemptions) : null;
+    last && prev ? delta(last.redemptions, prev.redemptions) : null;
 
   const totalStamps = buckets.reduce((s, b) => s + b.stamps_added, 0);
   const totalRedemptions = buckets.reduce((s, b) => s + b.redemptions, 0);
   const redemptionRate =
     totalStamps > 0 ? Math.round((totalRedemptions / totalStamps) * 100) : 0;
 
-  const bestWeek = useMemo(() => {
+  const best = useMemo(() => {
     if (buckets.length === 0) return null;
     const peak = buckets.reduce(
-      (best, b) => (b.stamps_added > best.stamps_added ? b : best),
+      (b, x) => (x.stamps_added > b.stamps_added ? x : b),
       buckets[0]
     );
     return peak.stamps_added > 0 ? peak : null;
   }, [buckets]);
 
-  const isCurrentWeekPeak =
-    bestWeek && last && bestWeek.period_start === last.period_start;
+  const isCurrentPeak = best && last && best.period_start === last.period_start;
+  const latestLabel = isDaily ? "today" : "this week";
+  const bestLabel = isDaily ? "Best day" : "Best week";
 
   return (
     <ChartCard
       title="Stamps & redemptions"
-      subtitle="Last 12 weeks · with 4-week rolling average"
+      subtitle={
+        isDaily
+          ? "Last 30 days · daily"
+          : "Last 12 weeks · with 4-week rolling average"
+      }
       info={
         <>
           <p className="font-medium text-foreground">Platform-wide stamp activity</p>
@@ -88,7 +105,8 @@ export function StampsChart() {
             type = <span className="font-medium">&apos;stamp_added&apos;</span>.{" "}
             <span className="font-medium">Redemptions</span>:{" "}
             type = <span className="font-medium">&apos;redeem&apos;</span>. Redemption
-            rate = redemptions / stamps. The 4-week line smooths short-term noise.
+            rate = redemptions / stamps. Switch to daily for a per-day line over
+            the last 30 days.
           </p>
         </>
       }
@@ -96,8 +114,18 @@ export function StampsChart() {
         <div className="flex items-center gap-3">
           <LegendItem color="var(--chart-3)" label="Stamps" />
           <LegendItem color="var(--chart-4)" label="Redemptions" />
-          <LegendItem color="var(--chart-1)" label="4w avg" />
+          {!isDaily && <LegendItem color="var(--chart-1)" label="4w avg" />}
         </div>
+      }
+      headerRight={
+        <SegmentedToggle<Mode>
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "weekly", label: "Weekly" },
+            { value: "daily", label: "Daily" },
+          ]}
+        />
       }
     >
       {isPending ? (
@@ -111,12 +139,12 @@ export function StampsChart() {
           {/* Headline strip */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <HeadlineTile
-              label="Stamps this week"
+              label={`Stamps ${latestLabel}`}
               value={last?.stamps_added ?? 0}
               delta={stampsDelta}
             />
             <HeadlineTile
-              label="Redemptions this week"
+              label={`Redemptions ${latestLabel}`}
               value={last?.redemptions ?? 0}
               delta={redemptionsDelta}
             />
@@ -126,28 +154,37 @@ export function StampsChart() {
               subtitle={`${totalRedemptions.toLocaleString()} of ${totalStamps.toLocaleString()}`}
             />
             <HeadlineTile
-              label="Best week"
-              value={bestWeek ? bestWeek.stamps_added : "—"}
+              label={bestLabel}
+              value={best ? best.stamps_added : "—"}
               subtitle={
-                bestWeek
-                  ? `${formatWeek(bestWeek.period_start)}${
-                      isCurrentWeekPeak ? " · current" : ""
+                best
+                  ? `${formatBucket(best.period_start)}${
+                      isCurrentPeak ? " · current" : ""
                     }`
                   : undefined
               }
-              icon={bestWeek ? <Award className="h-3.5 w-3.5" /> : undefined}
+              icon={best ? <Award className="h-3.5 w-3.5" /> : undefined}
             />
           </div>
 
+          {/* One ComposedChart for both modes (swapping the chart component type
+              under Recharts v3's ResponsiveContainer can fail to re-init). Daily
+              renders two Lines (stamps + redemptions); weekly renders Bars + the
+              4-week trend Line. `key` forces a clean remount between modes. */}
           <ChartContainer config={config} className="h-[240px] w-full">
-            <ComposedChart data={chartData} margin={{ left: 4, right: 4 }}>
+            <ComposedChart
+              key={mode}
+              data={chartData}
+              margin={{ left: 4, right: 4 }}
+            >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="period_start"
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={formatWeek}
+                tickFormatter={formatBucket}
                 fontSize={11}
+                minTickGap={isDaily ? 24 : 5}
               />
               <YAxis
                 tickLine={false}
@@ -159,28 +196,53 @@ export function StampsChart() {
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(v) => formatWeek(v as string)}
+                    labelFormatter={(v) => formatBucket(v as string)}
                   />
                 }
               />
-              <Bar
-                dataKey="stamps_added"
-                fill="var(--color-stamps_added)"
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar
-                dataKey="redemptions"
-                fill="var(--color-redemptions)"
-                radius={[4, 4, 0, 0]}
-              />
-              <Line
-                type="monotone"
-                dataKey="stamps_trend"
-                stroke="var(--color-stamps_trend)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
+              {isDaily ? (
+                <>
+                  <Line
+                    type="monotone"
+                    dataKey="stamps_added"
+                    stroke="var(--color-stamps_added)"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="redemptions"
+                    stroke="var(--color-redemptions)"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    isAnimationActive={false}
+                  />
+                </>
+              ) : (
+                <>
+                  <Bar
+                    dataKey="stamps_added"
+                    fill="var(--color-stamps_added)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="redemptions"
+                    fill="var(--color-redemptions)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="stamps_trend"
+                    stroke="var(--color-stamps_trend)"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </>
+              )}
             </ComposedChart>
           </ChartContainer>
         </div>

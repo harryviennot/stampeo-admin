@@ -10,6 +10,8 @@ interface StatCardProps {
   icon: React.ReactNode;
   badgeClass?: string;
   trend?: { current: number; previous: number };
+  /** Optional period count shown under the lifetime value, e.g. "1,204 in last 30d". */
+  subValue?: { current: number; label: string };
   info?: React.ReactNode;
 }
 
@@ -20,6 +22,7 @@ export function StatCard({
   icon,
   badgeClass,
   trend,
+  subValue,
   info,
 }: StatCardProps) {
   const trendPct =
@@ -44,6 +47,11 @@ export function StatCard({
                 value ?? 0
               )}
             </p>
+            {!loading && subValue && (
+              <p className="text-xs font-medium tabular-nums text-foreground/80">
+                {subValue.current.toLocaleString()} {subValue.label}
+              </p>
+            )}
             {!loading && trend && (
               <div className="flex items-center gap-1 text-xs">
                 {trendPct !== null ? (
@@ -61,11 +69,11 @@ export function StatCard({
                       {trendUp ? "+" : ""}
                       {trendPct}%
                     </span>
-                    <span className="text-muted-foreground">vs last month</span>
+                    <span className="text-muted-foreground">vs prior 30d</span>
                   </>
                 ) : (
                   <span className="text-muted-foreground">
-                    {trend.current} this month (new)
+                    {trend.current} last 30d (new)
                   </span>
                 )}
               </div>

@@ -171,6 +171,36 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/** Regional-indicator flag emoji from an ISO-3166 alpha-2 code. */
+function flagEmoji(code: string): string {
+  if (!/^[A-Za-z]{2}$/.test(code)) return "";
+  const base = 0x1f1e6;
+  const cc = code.toUpperCase();
+  return String.fromCodePoint(
+    base + (cc.charCodeAt(0) - 65),
+    base + (cc.charCodeAt(1) - 65)
+  );
+}
+
+/** Human label for a country: "🇫🇷 France", deriving the name from the ISO-2
+ *  code via Intl.DisplayNames when the backend didn't supply one. */
+function countryLabel(code?: string | null, name?: string | null): string | null {
+  if (!code && !name) return null;
+  let display = name ?? null;
+  if (!display && code) {
+    try {
+      display =
+        new Intl.DisplayNames(["en"], { type: "region" }).of(
+          code.toUpperCase()
+        ) ?? code;
+    } catch {
+      display = code;
+    }
+  }
+  const flag = code ? flagEmoji(code) : "";
+  return `${flag ? flag + " " : ""}${display ?? code ?? ""}`.trim();
+}
+
 function InfoTab({ business }: { business: Business }) {
   return (
     <Card>
@@ -226,6 +256,21 @@ function InfoTab({ business }: { business: Business }) {
         )}
         {business.owner_phone && (
           <InfoRow label="Owner phone" value={business.owner_phone} />
+        )}
+        {(business.country_code || business.country) && (
+          <InfoRow
+            label="Country"
+            value={
+              <span>
+                {countryLabel(business.country_code, business.country)}
+                {business.country_source && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    (via {business.country_source})
+                  </span>
+                )}
+              </span>
+            }
+          />
         )}
         {business.identity_website && (
           <InfoRow

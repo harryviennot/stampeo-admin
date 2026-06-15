@@ -20,6 +20,8 @@ export const adminKeys = {
       ["stats", "top-businesses-all-time", limit] as const,
     customerSignupsByBiz: (p: CustomerSignupsByBizParams) =>
       ["stats", "customer-signups-by-biz", p] as const,
+    customerSignupsTopPerBucket: (p: CustomerSignupsByBizParams) =>
+      ["stats", "customer-signups-top-per-bucket", p] as const,
     heardFrom: ["stats", "heard-from"] as const,
     onboardingBreakdowns: ["stats", "onboarding-breakdowns"] as const,
     onboardingFunnel: (p: RangeParams) =>
