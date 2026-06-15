@@ -57,6 +57,10 @@ const CHAPTER_STEPS: Array<{
   { chapter: "team",            step: "team",            label: "Team",                          shortLabel: "Team" },
   { chapter: "recap",           step: "recap",           label: "Recap",                         shortLabel: "Recap" },
   { chapter: "plan",            step: "plan",            label: "Plan",                          shortLabel: "Plan" },
+  // Synthetic terminal bar — businesses that attached a card. Scoped to the
+  // card-upfront cohort, so it's NOT comparable to the steps above (which count
+  // every started business); its drop-off colour is suppressed below.
+  { chapter: "billing",         step: "card",            label: "Card attached (card-upfront)",  shortLabel: "Card" },
 ];
 
 // Per-chapter colour for visual grouping in the bar chart.
@@ -72,6 +76,7 @@ const CHAPTER_COLOURS: Record<string, string> = {
   team:              "#14B8A6",
   recap:             "#84CC16",
   plan:              "#3B82F6",
+  billing:           "#1A1614", // brand dark — distinct terminal bar
 };
 
 const config: ChartConfig = {
@@ -105,10 +110,14 @@ export function SetupWizardFunnelChart() {
       i === 0 ? reached : (reachedByKey.get(
         `${CHAPTER_STEPS[i - 1].chapter}/${CHAPTER_STEPS[i - 1].step}`
       ) ?? 0);
+    // The terminal "card attached" bar counts a different (card-upfront only)
+    // cohort, so a drop-off vs the prior step would be meaningless — suppress it.
     const dropoff =
-      prev > 0 && i > 0
-        ? Math.round(((prev - reached) / prev) * 100)
-        : null;
+      cs.chapter === "billing"
+        ? null
+        : prev > 0 && i > 0
+          ? Math.round(((prev - reached) / prev) * 100)
+          : null;
     return {
       key: `${cs.chapter}/${cs.step}`,
       label: narrow ? cs.shortLabel : cs.label,
@@ -120,6 +129,8 @@ export function SetupWizardFunnelChart() {
 
   const started = data?.started ?? 0;
   const completed = data?.completed ?? 0;
+  const cardUpfrontStarted = data?.card_upfront_started ?? 0;
+  const cardAttached = data?.card_attached ?? 0;
   const overallConv =
     started > 0 ? Math.round((completed / started) * 100) : null;
 
@@ -153,6 +164,17 @@ export function SetupWizardFunnelChart() {
             <span className="font-medium">Currently parked at</span> chips below
             show where in-progress businesses are stalled — the true drop-off
             signal.
+          </p>
+          <p className="mt-2 text-muted-foreground">
+            The final{" "}
+            <span className="font-medium text-foreground">Card attached</span> bar
+            counts only the <span className="font-medium">card-upfront cohort</span>{" "}
+            (requires_card_upfront) that has a Stripe subscription
+            {cardUpfrontStarted > 0
+              ? ` — ${cardAttached}/${cardUpfrontStarted} of them`
+              : ""}
+            . Grandfathered no-card businesses are excluded, so it is not
+            comparable to the steps above and its drop-off colour is suppressed.
           </p>
         </>
       }

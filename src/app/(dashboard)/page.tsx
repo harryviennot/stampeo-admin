@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { ChartCard } from "@/components/chart-card";
+import { LazyMount } from "@/components/lazy-mount";
 import {
   useBillingBreakdown,
   useBusinessRetention,
@@ -158,9 +159,12 @@ export default function DashboardPage() {
       {/* ── Platform totals ── */}
       <SectionHeader
         title="Platform totals"
-        description="Lifetime counts across every business on the platform, with month-over-month trends on customer and stamp volume."
+        description="Lifetime counts across every business on the platform. Customer, stamp and reward volume carry a rolling 30-day window (last 30 days vs the prior 30) so the comparison stays fair year-round."
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+      {/* Volume & 30d momentum */}
+      <SubGroupLabel>Volume &amp; 30d momentum</SubGroupLabel>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Businesses"
           value={stats?.total_businesses}
@@ -169,136 +173,178 @@ export default function DashboardPage() {
           info="Every business row regardless of status (active, pending, suspended). Lifetime count — doesn't include businesses that were hard-deleted."
         />
         <StatCard
-          label="Active Trials"
-          value={billing?.trial}
-          loading={billingPending}
-          icon={<Clock className="h-4 w-4" />}
-          badgeClass="bg-blue-100 text-blue-700"
-          info={
-            <>
-              <p className="font-medium text-foreground">
-                Businesses currently on a trial
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                Count of businesses with{" "}
-                <span className="font-medium">billing_status = &apos;trial&apos;</span>.
-                These haven&apos;t converted to paid yet — they don&apos;t
-                contribute to MRR until they flip to{" "}
-                <span className="font-medium">active</span>.
-              </p>
-            </>
-          }
-        />
-        <StatCard
           label="Total Customers"
           value={stats?.total_customers}
           loading={statsPending}
           icon={<Users className="h-4 w-4" />}
+          subValue={
+            stats ? { current: stats.customers_current_30d, label: "in last 30d" } : undefined
+          }
           trend={
             stats
               ? {
-                  current: stats.customers_this_month,
-                  previous: stats.customers_last_month,
+                  current: stats.customers_current_30d,
+                  previous: stats.customers_prior_30d,
                 }
               : undefined
           }
-          info="Every customer ever enrolled across all businesses. The percentage compares customers created this calendar month vs last month."
+          info="Every customer ever enrolled across all businesses. The 30d line shows enrollments in the last 30 days; the trend compares that against the prior 30 days."
         />
         <StatCard
           label="Total Stamps"
           value={stats?.total_stamps}
           loading={statsPending}
           icon={<CircleDot className="h-4 w-4" />}
+          subValue={
+            stats ? { current: stats.stamps_current_30d, label: "in last 30d" } : undefined
+          }
           trend={
             stats
               ? {
-                  current: stats.stamps_this_month,
-                  previous: stats.stamps_last_month,
+                  current: stats.stamps_current_30d,
+                  previous: stats.stamps_prior_30d,
                 }
               : undefined
           }
-          info="Every stamp_added transaction ever recorded. Trend compares this month vs last month — the primary gauge of platform usage."
+          info="Every stamp_added transaction ever recorded. The 30d line and trend (last 30 days vs prior 30) are the primary gauge of platform usage."
         />
         <StatCard
-          label="Funnel Completion Rate"
-          value={completionRate === null ? "—" : `${completionRate}%`}
-          loading={funnelPending}
-          icon={<TrendingUp className="h-4 w-4" />}
-          badgeClass={completionBadgeClass}
+          label="Total Rewards"
+          value={stats?.total_rewards_redeemed}
+          loading={statsPending}
+          icon={<Gift className="h-4 w-4" />}
+          subValue={
+            stats ? { current: stats.rewards_current_30d, label: "in last 30d" } : undefined
+          }
+          trend={
+            stats
+              ? {
+                  current: stats.rewards_current_30d,
+                  previous: stats.rewards_prior_30d,
+                }
+              : undefined
+          }
+          info="Lifetime reward redemptions (transactions with type = 'reward_redeemed'). The 30d line and trend show how many loyalty loops closed recently — complements total stamps."
+        />
+      </div>
+
+      {/* Activation & engagement */}
+      <SubGroupLabel>Activation &amp; engagement</SubGroupLabel>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Active Businesses · 7d"
+          value={health?.active_biz_7d}
+          loading={healthPending}
+          icon={<Activity className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info="Distinct businesses with at least one stamp_added in the last 7 days — the platform's weekly active businesses (WAU)."
+        />
+        <StatCard
+          label="Active Businesses · 30d"
+          value={health?.active_biz_30d}
+          loading={healthPending}
+          icon={<Activity className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info="Distinct businesses with at least one stamp_added in the last 30 days — monthly active businesses (MAU)."
+        />
+        <StatCard
+          label="Stickiness · WAU/MAU"
+          value={stickinessPct === null ? "—" : `${stickinessPct}%`}
+          loading={healthPending}
+          icon={<Gauge className="h-4 w-4" />}
+          badgeClass={
+            stickinessPct === null
+              ? undefined
+              : stickinessPct >= 40
+                ? "bg-emerald-100 text-emerald-700"
+                : stickinessPct >= 20
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-red-100 text-red-700"
+          }
           info={
             <>
-              <p className="font-medium text-foreground">
-                Authenticated wizard starters who completed signup (last 90d)
-              </p>
+              <p className="font-medium text-foreground">How often active businesses come back</p>
               <p className="mt-1 text-muted-foreground">
-                <span className="font-medium">completed ÷ (completed + abandoned)</span>{" "}
-                across the post-auth onboarding wizard. Pre-auth drop-off
-                (steps 1–3) is invisible here — see PostHog{" "}
-                <span className="font-medium">onboarding_step_completed</span>{" "}
-                for that.{" "}
+                7-day active ÷ 30-day active businesses. A higher ratio means
+                businesses use Stampeo most weeks of the month, not just once.{" "}
                 <span className="font-medium">Higher is better.</span>
               </p>
             </>
           }
         />
         <StatCard
-          label="Certificates Available"
-          value={stats?.certs_available}
-          loading={statsPending}
-          icon={<ShieldCheck className="h-4 w-4" />}
-          badgeClass="bg-emerald-100 text-emerald-700"
-          info="Unassigned Apple Pass Type IDs in the pool. Each new business design consumes one. If this hits 0, new signups can't issue wallet passes."
-        />
-        {(() => {
-          if (!stats) {
-            return (
-              <StatCard
-                label="Cert Headroom"
-                value={undefined}
-                loading={statsPending}
-                icon={<ShieldCheck className="h-4 w-4" />}
-              />
-            );
+          label="Repeat-Customer Rate"
+          value={repeatPct === null ? "—" : `${repeatPct}%`}
+          loading={healthPending}
+          icon={<Repeat className="h-4 w-4" />}
+          badgeClass={
+            repeatPct === null
+              ? undefined
+              : repeatPct >= 40
+                ? "bg-emerald-100 text-emerald-700"
+                : repeatPct >= 25
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-red-100 text-red-700"
           }
-          const totalCerts = stats.certs_available + stats.certs_assigned;
-          const delta = totalCerts - stats.total_businesses;
-          const critical = delta <= 0;
-          const warning = !critical && delta <= 10;
-          const badgeClass = critical
-            ? "bg-red-100 text-red-700"
-            : warning
-              ? "bg-amber-100 text-amber-700"
-              : "bg-emerald-100 text-emerald-700";
-          return (
-            <StatCard
-              label="Cert Headroom"
-              value={delta}
-              loading={statsPending}
-              icon={<ShieldCheck className="h-4 w-4" />}
-              badgeClass={badgeClass}
-              info={
-                <>
-                  <p className="font-medium text-foreground">
-                    Pool size minus total businesses
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    ({totalCerts} total certs − {stats.total_businesses}{" "}
-                    businesses). Positive = room to onboard without provisioning
-                    more Pass Type IDs. Zero or negative = the pool is full and
-                    new signups will fail until certificates are added.
-                  </p>
-                </>
-              }
-            />
-          );
-        })()}
-        <StatCard
-          label="Total Rewards"
-          value={stats?.total_rewards_redeemed}
-          loading={statsPending}
-          icon={<Gift className="h-4 w-4" />}
-          info="Rows in transactions with type = 'redeem'. Counts lifetime reward redemptions — complements total stamps by showing how many loyalty loops actually closed."
+          info={
+            <>
+              <p className="font-medium text-foreground">Do end-customers come back?</p>
+              <p className="mt-1 text-muted-foreground">
+                Platform-wide share of customers who stamped on ≥2 distinct days
+                ÷ customers who ever stamped. The single best proof the loyalty
+                product retains. <span className="font-medium">Higher is better.</span>
+              </p>
+            </>
+          }
         />
+        <StatCard
+          label="Qualified Businesses"
+          value={health?.qualified_biz}
+          loading={healthPending}
+          icon={<Store className="h-4 w-4" />}
+          info={
+            <>
+              <p className="font-medium text-foreground">Businesses with more than 2 customers</p>
+              <p className="mt-1 text-muted-foreground">
+                Filters out demos and one-customer onboarding tests. A truer base
+                count than total businesses.
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Qualified & Active"
+          value={health?.qualified_active_biz}
+          loading={healthPending}
+          icon={<Store className="h-4 w-4" />}
+          badgeClass="bg-emerald-100 text-emerald-700"
+          info={
+            <>
+              <p className="font-medium text-foreground">Real, live businesses</p>
+              <p className="mt-1 text-muted-foreground">
+                More than 2 customers <span className="font-medium">and</span>{" "}
+                active in the last 30 days. The honest &quot;live businesses&quot;
+                number to quote — immune to self-stamp demos.
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Median Days to First Stamp"
+          value={
+            health && health.median_days_first_stamp !== null
+              ? Math.round(health.median_days_first_stamp * 10) / 10
+              : "—"
+          }
+          loading={healthPending}
+          icon={<Timer className="h-4 w-4" />}
+          info="Median time from business signup to its first stamp_added, across businesses that ever stamped. Activation latency — if it creeps up, onboarding is getting harder. Lower is better."
+        />
+      </div>
+
+      {/* Leakage / risk */}
+      <SubGroupLabel>Leakage / risk</SubGroupLabel>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={`Zombie Customers${zombieSuffix}`}
           value={inactive?.zombie_customers}
@@ -346,114 +392,67 @@ export default function DashboardPage() {
             </>
           }
         />
+      </div>
+
+      {/* Pipeline & infra */}
+      <SubGroupLabel>Pipeline &amp; infra</SubGroupLabel>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Active Businesses · 7d"
-          value={health?.active_biz_7d}
-          loading={healthPending}
-          icon={<Activity className="h-4 w-4" />}
-          badgeClass="bg-emerald-100 text-emerald-700"
-          info="Distinct businesses with at least one stamp_added in the last 7 days — the platform's weekly active businesses (WAU)."
-        />
-        <StatCard
-          label="Active Businesses · 30d"
-          value={health?.active_biz_30d}
-          loading={healthPending}
-          icon={<Activity className="h-4 w-4" />}
-          badgeClass="bg-emerald-100 text-emerald-700"
-          info="Distinct businesses with at least one stamp_added in the last 30 days — monthly active businesses (MAU)."
-        />
-        <StatCard
-          label="Stickiness · WAU/MAU"
-          value={stickinessPct === null ? "—" : `${stickinessPct}%`}
-          loading={healthPending}
-          icon={<Gauge className="h-4 w-4" />}
-          badgeClass={
-            stickinessPct === null
-              ? undefined
-              : stickinessPct >= 40
-                ? "bg-emerald-100 text-emerald-700"
-                : stickinessPct >= 20
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-red-100 text-red-700"
-          }
+          label="Active Trials"
+          value={billing?.trial}
+          loading={billingPending}
+          icon={<Clock className="h-4 w-4" />}
+          badgeClass="bg-blue-100 text-blue-700"
           info={
             <>
-              <p className="font-medium text-foreground">How often active businesses come back</p>
+              <p className="font-medium text-foreground">
+                Businesses currently on a trial
+              </p>
               <p className="mt-1 text-muted-foreground">
-                7-day active ÷ 30-day active businesses. A higher ratio means
-                businesses use Stampeo most weeks of the month, not just once.{" "}
+                Count of businesses with{" "}
+                <span className="font-medium">billing_status = &apos;trial&apos;</span>.
+                These haven&apos;t converted to paid yet — they don&apos;t
+                contribute to MRR until they flip to{" "}
+                <span className="font-medium">active</span>.
+              </p>
+            </>
+          }
+        />
+        <StatCard
+          label="Funnel Completion Rate"
+          value={completionRate === null ? "—" : `${completionRate}%`}
+          loading={funnelPending}
+          icon={<TrendingUp className="h-4 w-4" />}
+          badgeClass={completionBadgeClass}
+          info={
+            <>
+              <p className="font-medium text-foreground">
+                Authenticated wizard starters who completed signup (last 90d)
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                <span className="font-medium">completed ÷ (completed + abandoned)</span>{" "}
+                across the post-auth onboarding wizard. Pre-auth drop-off
+                (steps 1–3) is invisible here — see PostHog{" "}
+                <span className="font-medium">onboarding_step_completed</span>{" "}
+                for that.{" "}
                 <span className="font-medium">Higher is better.</span>
               </p>
             </>
           }
         />
         <StatCard
-          label="Qualified Businesses"
-          value={health?.qualified_biz}
-          loading={healthPending}
-          icon={<Store className="h-4 w-4" />}
-          info={
-            <>
-              <p className="font-medium text-foreground">Businesses with more than 2 customers</p>
-              <p className="mt-1 text-muted-foreground">
-                Filters out demos and one-customer onboarding tests. A truer base
-                count than total businesses.
-              </p>
-            </>
-          }
-        />
-        <StatCard
-          label="Qualified & Active"
-          value={health?.qualified_active_biz}
-          loading={healthPending}
-          icon={<Store className="h-4 w-4" />}
-          badgeClass="bg-emerald-100 text-emerald-700"
-          info={
-            <>
-              <p className="font-medium text-foreground">Real, live businesses</p>
-              <p className="mt-1 text-muted-foreground">
-                More than 2 customers <span className="font-medium">and</span>{" "}
-                active in the last 30 days. The honest &quot;live businesses&quot;
-                number to quote — immune to self-stamp demos.
-              </p>
-            </>
-          }
-        />
-        <StatCard
-          label="Repeat-Customer Rate"
-          value={repeatPct === null ? "—" : `${repeatPct}%`}
-          loading={healthPending}
-          icon={<Repeat className="h-4 w-4" />}
+          label="Certificates Available"
+          value={stats?.certs_available}
+          loading={statsPending}
+          icon={<ShieldCheck className="h-4 w-4" />}
           badgeClass={
-            repeatPct === null
-              ? undefined
-              : repeatPct >= 40
-                ? "bg-emerald-100 text-emerald-700"
-                : repeatPct >= 25
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-red-100 text-red-700"
+            stats && stats.certs_available < 50
+              ? stats.certs_available <= 10
+                ? "bg-red-100 text-red-700"
+                : "bg-amber-100 text-amber-700"
+              : "bg-emerald-100 text-emerald-700"
           }
-          info={
-            <>
-              <p className="font-medium text-foreground">Do end-customers come back?</p>
-              <p className="mt-1 text-muted-foreground">
-                Platform-wide share of customers who stamped on ≥2 distinct days
-                ÷ customers who ever stamped. The single best proof the loyalty
-                product retains. <span className="font-medium">Higher is better.</span>
-              </p>
-            </>
-          }
-        />
-        <StatCard
-          label="Median Days to First Stamp"
-          value={
-            health && health.median_days_first_stamp !== null
-              ? Math.round(health.median_days_first_stamp * 10) / 10
-              : "—"
-          }
-          loading={healthPending}
-          icon={<Timer className="h-4 w-4" />}
-          info="Median time from business signup to its first stamp_added, across businesses that ever stamped. Activation latency — if it creeps up, onboarding is getting harder. Lower is better."
+          info="Unassigned Apple Pass Type IDs in the pool. Each new business that creates a card claims one. Ops gets an email alert when this drops below 50; if it hits 0, new signups can't issue wallet passes."
         />
       </div>
 
@@ -462,52 +461,61 @@ export default function DashboardPage() {
         title="Leaderboards"
         description="The composite health score blends repeat rate, density, rewards and volume; the drill-downs break out each dimension. All exclude one-customer onboarding noise (≥5 customers)."
       />
-      <TopBusinessesHealthCard />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopBusinessesRollingCard />
-        <TopBusinessesDensityCard />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopBusinessesRepeatCard />
-        <TopBusinessesRewardsCard />
-      </div>
-      <TopBusinessesAllTimeCard />
+      <LazyMount minHeight={900} className="space-y-8">
+        <TopBusinessesHealthCard />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TopBusinessesRollingCard />
+          <TopBusinessesDensityCard />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TopBusinessesRepeatCard />
+          <TopBusinessesRewardsCard />
+        </div>
+        <TopBusinessesAllTimeCard />
+      </LazyMount>
 
       {/* ── Growth ── */}
       <SectionHeader
         title="Growth"
         description="Weekly inflow of stamps, new businesses, and new customers. The signal you check to answer 'is the platform growing?'."
       />
-      <StampsChart />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <BusinessSignupsChart />
-        <CustomerSignupsChart />
-      </div>
+      <LazyMount minHeight={700} className="space-y-8">
+        <StampsChart />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <BusinessSignupsChart />
+          <CustomerSignupsChart />
+        </div>
+      </LazyMount>
 
       {/* ── Funnels & activation ── */}
       <SectionHeader
         title="Funnels & activation"
         description="Where prospects and new businesses drop off. Pre-signup shows the onboarding wizard; post-signup tracks whether businesses actually use the product."
       />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <OnboardingFunnelChart />
-        <ActivationFunnelChart />
-      </div>
-      <SetupWizardFunnelChart />
+      <LazyMount minHeight={800} className="space-y-8">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <OnboardingFunnelChart />
+          <ActivationFunnelChart />
+        </div>
+        <SetupWizardFunnelChart />
+      </LazyMount>
 
       {/* ── Retention & engagement ── */}
       <SectionHeader
         title="Retention & engagement"
         description="Do customers keep their passes installed, and when are they actually scanning? These metrics catch leaks the growth charts miss."
       />
-      <PassLifecycleChart />
-      <StampHeatmapCard />
+      <LazyMount minHeight={600} className="space-y-8">
+        <PassLifecycleChart />
+        <StampHeatmapCard />
+      </LazyMount>
 
       {/* ── Monetization ── */}
       <SectionHeader
         title="Monetization"
         description="How quickly trial businesses convert to paid, and the current billing mix across the platform."
       />
+      <LazyMount minHeight={700} className="space-y-8">
       <RevenueCard />
       <TrialCohortsChart />
       <ChartCard
@@ -589,54 +597,61 @@ export default function DashboardPage() {
           </div>
         )}
       </ChartCard>
+      </LazyMount>
 
       {/* ── Retention & ad-readiness ── */}
       <SectionHeader
         title="Retention & ad-readiness"
         description="The day-60 retention of each business signup cohort. The gate: once a matured cohort holds ≥25% at day 60, paid acquisition is worth turning on (STA-199 / STA-204)."
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Day-60 Retention · latest matured cohort"
-          value={retentionD60Pct === null ? "—" : `${retentionD60Pct}%`}
-          loading={retentionPending}
-          icon={<Activity className="h-4 w-4" />}
-          badgeClass={
-            retentionHeadline === null
-              ? undefined
-              : retentionHeadline.pass
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-red-100 text-red-700"
-          }
-          info={
-            <>
-              <p className="font-medium text-foreground">Ad-readiness gate: ≥ 25% at day 60</p>
-              <p className="mt-1 text-muted-foreground">
-                Share of the most recent fully-matured signup cohort still active
-                (stamping) around day 60. At or above 25% means acquired
-                businesses stick well enough to justify paid acquisition.
-                <span className="font-medium"> Higher is better.</span>
-              </p>
-            </>
-          }
-        />
-      </div>
-      <BusinessRetentionChart />
+      <LazyMount minHeight={500} className="space-y-8">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label="Day-60 Retention · latest matured cohort"
+            value={retentionD60Pct === null ? "—" : `${retentionD60Pct}%`}
+            loading={retentionPending}
+            icon={<Activity className="h-4 w-4" />}
+            badgeClass={
+              retentionHeadline === null
+                ? undefined
+                : retentionHeadline.pass
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-red-100 text-red-700"
+            }
+            info={
+              <>
+                <p className="font-medium text-foreground">Ad-readiness gate: ≥ 25% at day 60</p>
+                <p className="mt-1 text-muted-foreground">
+                  Share of the most recent fully-matured signup cohort still active
+                  (stamping) around day 60. At or above 25% means acquired
+                  businesses stick well enough to justify paid acquisition.
+                  <span className="font-medium"> Higher is better.</span>
+                </p>
+              </>
+            }
+          />
+        </div>
+        <BusinessRetentionChart />
+      </LazyMount>
 
       {/* ── Paywall ── */}
       <SectionHeader
         title="Hard paywall"
         description="Effect of requiring a card at the end of onboarding: top-of-funnel completion and trial→paid conversion, card-required cohort vs the grandfathered no-card baseline (STA-198 / STA-200 / STA-202)."
       />
-      <PaywallFunnelChart />
-      <PaywallCohortsChart />
+      <LazyMount minHeight={700} className="space-y-8">
+        <PaywallFunnelChart />
+        <PaywallCohortsChart />
+      </LazyMount>
 
       {/* ── Communication ── */}
       <SectionHeader
         title="Communication"
         description="How well do broadcast pushes actually reach customers? Failure modes are broken out separately so you can spot platform-specific issues."
       />
-      <BroadcastDeliverabilityChart />
+      <LazyMount minHeight={400} className="space-y-8">
+        <BroadcastDeliverabilityChart />
+      </LazyMount>
     </div>
   );
 }
@@ -653,5 +668,13 @@ function SectionHeader({
       <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
       <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
     </div>
+  );
+}
+
+function SubGroupLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      {children}
+    </h3>
   );
 }

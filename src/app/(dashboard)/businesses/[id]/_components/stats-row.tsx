@@ -25,30 +25,36 @@ export function StatsRow({ businessId }: { businessId: string }) {
         value={stats?.total_customers}
         loading={isPending}
         icon={<Users className="h-4 w-4" />}
+        subValue={
+          stats ? { current: stats.customers_current_30d, label: "in last 30d" } : undefined
+        }
         trend={
           stats
             ? {
-                current: stats.customers_this_month,
-                previous: stats.customers_last_month,
+                current: stats.customers_current_30d,
+                previous: stats.customers_prior_30d,
               }
             : undefined
         }
-        info="Every customer ever enrolled with this business. The trend compares customers created this calendar month vs last month."
+        info="Every customer ever enrolled with this business. The 30d line shows enrollments in the last 30 days; the trend compares that against the prior 30 days."
       />
       <StatCard
         label="Total Stamps"
         value={stats?.total_stamps}
         loading={isPending}
         icon={<CircleDot className="h-4 w-4" />}
+        subValue={
+          stats ? { current: stats.stamps_current_30d, label: "in last 30d" } : undefined
+        }
         trend={
           stats
             ? {
-                current: stats.stamps_this_month,
-                previous: stats.stamps_last_month,
+                current: stats.stamps_current_30d,
+                previous: stats.stamps_prior_30d,
               }
             : undefined
         }
-        info="Every stamp_added transaction for this business. The primary gauge of real usage."
+        info="Every stamp_added transaction for this business. The 30d line and trend (last 30 days vs prior 30) are the primary gauge of real usage."
       />
       <StatCard
         label="Total Rewards"
