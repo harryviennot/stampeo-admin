@@ -355,6 +355,40 @@ export interface GlobalStats {
   rewards_prior_30d: number;
   certs_available: number;
   certs_assigned: number;
+  certs_reclaimable: number;
+  certs_reclaim_candidates: number;
+}
+
+export type ReclaimSegment = "A" | "B1" | "B2";
+
+export interface CertReclaimView {
+  is_candidate: boolean;
+  billing_status: string | null;
+  segment: ReclaimSegment | null;
+  ever_paid: boolean;
+  anchor_date: string | null;
+  days_since: number | null;
+  release_date: string | null;
+  days_until_release: number | null;
+  warnings_sent: string[];
+  eligible_now: boolean;
+}
+
+export interface ReclaimCandidate {
+  pass_type_id: string;
+  identifier: string;
+  business_id: string;
+  business_name: string | null;
+  segment: ReclaimSegment;
+  ever_had_customers: boolean;
+  ever_paid: boolean;
+  anchor_date: string;
+  days_since: number;
+  release_date: string;
+  days_until_release: number;
+  warnings_sent: string[];
+  eligible_now: boolean;
+  auto_release: boolean;
 }
 
 export interface BusinessStats {
@@ -370,7 +404,10 @@ export interface BusinessStats {
     id: string;
     identifier: string;
     status: string;
+    previous_business_id?: string | null;
+    released_at?: string | null;
   } | null;
+  reclaim: CertReclaimView;
 }
 
 export async function fetchGlobalStats(): Promise<GlobalStats> {
@@ -537,6 +574,27 @@ export async function revokePassTypeId(
 ): Promise<{ id: string; identifier: string; status: string }> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/pass-type-ids/${id}/revoke`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchReclaimCandidates(): Promise<ReclaimCandidate[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/pass-type-ids/reclaim-candidates`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function releasePassTypeId(
+  id: string
+): Promise<{ id: string; identifier: string; status: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/pass-type-ids/${id}/release`, {
     method: "POST",
     headers,
   });
