@@ -1468,7 +1468,7 @@ export async function fetchEmailFlows(): Promise<EmailFlow[]> {
 // ─── Changelog authoring ────────────────────────────────────────
 
 export type ChangelogCategory = "feature" | "improvement" | "fix";
-export type ChangelogRole = "owner" | "scanner";
+export type ChangelogRole = "owner" | "admin" | "scanner";
 
 export interface ChangelogArea {
   slug: string;
@@ -1549,6 +1549,16 @@ export async function fetchChangelogReleases(): Promise<ChangelogRelease[]> {
   return data.releases as ChangelogRelease[];
 }
 
+export async function fetchChangelogRelease(id: string): Promise<ChangelogRelease> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/releases/${id}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.release as ChangelogRelease;
+}
+
 export async function updateChangelogRelease(
   id: string,
   payload: ChangelogReleaseInput
@@ -1579,14 +1589,18 @@ export async function uploadChangelogImage(file: File): Promise<string> {
 }
 
 export async function createChangelogItem(
+  releaseId: string,
   payload: ChangelogItemInput
 ): Promise<ChangelogItem> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE_URL}/admin/changelog/items`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/admin/changelog/releases/${releaseId}/items`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    }
+  );
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
   return data.item as ChangelogItem;

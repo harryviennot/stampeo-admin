@@ -93,5 +93,6 @@ export const adminKeys = {
     all: ["changelog"] as const,
     draft: ["changelog", "draft"] as const,
     releases: ["changelog", "releases"] as const,
+    release: (id: string) => ["changelog", "release", id] as const,
   },
 };

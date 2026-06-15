@@ -11,6 +11,8 @@ import {
   PencilSimple,
   Image as ImageIcon,
   Rocket,
+  CaretDown,
+  CaretRight,
 } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { adminKeys } from "@/lib/query-keys";
-import { areaChipClass } from "@/lib/changelog-areas";
+import { AreaDot } from "@/components/changelog-area-chip";
 import {
   type ChangelogArea,
   type ChangelogCategory,
@@ -45,6 +47,7 @@ import {
   createChangelogItem,
   deleteChangelogItem,
   fetchChangelogDraft,
+  fetchChangelogRelease,
   fetchChangelogReleases,
   publishChangelogRelease,
   updateChangelogItem,
@@ -63,26 +66,14 @@ const CATEGORY_META: Record<
 
 const ROLE_LABELS: Record<ChangelogRole, string> = {
   owner: "Owners",
-  scanner: "Team (scanners)",
+  admin: "Admins",
+  scanner: "Scanners",
 };
 
-const ALL_ROLES: ChangelogRole[] = ["owner", "scanner"];
+const ALL_ROLES: ChangelogRole[] = ["owner", "admin", "scanner"];
 
 const textareaClass =
   "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-colors focus:ring-2 focus:ring-ring/50 focus:border-ring disabled:opacity-50";
-
-function AreaChip({ area }: { area: ChangelogArea }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        areaChipClass(area.color)
-      )}
-    >
-      {area.label_en}
-    </span>
-  );
-}
 
 export default function ChangelogPage() {
   const qc = useQueryClient();
@@ -97,11 +88,9 @@ export default function ChangelogPage() {
 
   const draft = draftQuery.data?.draft;
   const areas = useMemo(() => draftQuery.data?.areas ?? [], [draftQuery.data]);
-  const items = draft?.changelog_items ?? [];
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: adminKeys.changelog.draft });
-    qc.invalidateQueries({ queryKey: adminKeys.changelog.releases });
+    qc.invalidateQueries({ queryKey: adminKeys.changelog.all });
   };
 
   if (draftQuery.isLoading) {
@@ -115,34 +104,145 @@ export default function ChangelogPage() {
     );
   }
 
+  const published = (releasesQuery.data ?? []).filter(
+    (r) => r.status === "published"
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Changelog</h1>
           <p className="text-sm text-muted-foreground">
-            Author this week&apos;s release. Items roll up into one published post
-            that powers the showcase timeline, the dashboard &ldquo;What&apos;s
-            new&rdquo; widget, and the product-update email.
+            Author this week&apos;s release, and edit past releases to reword or
+            clarify them. Items roll up into one published post on the showcase,
+            the dashboard widget, and the product-update email.
           </p>
         </div>
         <PublishBar
           draft={draft}
-          itemCount={items.length}
+          itemCount={draft.changelog_items?.length ?? 0}
           suggestedVersion={draftQuery.data?.suggested_version ?? "1.0.0"}
           onPublished={invalidate}
         />
       </div>
 
-      <PostEditor draft={draft} onSaved={invalidate} />
+      {/* Open draft */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          This week&apos;s draft
+        </h2>
+        <ReleaseEditor release={draft} areas={areas} onChanged={invalidate} />
+      </section>
 
+      {/* Published history — expand to edit */}
+      {published.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Published releases
+          </h2>
+          <div className="space-y-2">
+            {published.map((r) => (
+              <PublishedReleaseRow
+                key={r.id}
+                release={r}
+                areas={areas}
+                onChanged={invalidate}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ─── A collapsible published release that expands into the editor ────
+
+function PublishedReleaseRow({
+  release,
+  areas,
+  onChanged,
+}: {
+  release: ChangelogRelease;
+  areas: ChangelogArea[];
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const full = useQuery({
+    queryKey: adminKeys.changelog.release(release.id),
+    queryFn: () => fetchChangelogRelease(release.id),
+    enabled: open,
+  });
+  const count = Array.isArray(release.changelog_items)
+    ? (release.changelog_items[0] as unknown as { count?: number })?.count ?? 0
+    : 0;
+
+  return (
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/40"
+      >
+        {open ? (
+          <CaretDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <CaretRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <span className="font-mono text-sm font-semibold">{release.version}</span>
+        <span className="flex-1 truncate text-sm text-muted-foreground">
+          {release.title_fr || release.title_en || "Untitled"}
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {count} items
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {release.published_at
+            ? new Date(release.published_at).toLocaleDateString()
+            : ""}
+        </span>
+      </button>
+      {open && (
+        <div className="border-t p-4">
+          {full.isLoading || !full.data ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <ReleaseEditor
+              release={full.data}
+              areas={areas}
+              onChanged={() => {
+                full.refetch();
+                onChanged();
+              }}
+            />
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── Release editor: post fields + items, works for draft or published ───
+
+function ReleaseEditor({
+  release,
+  areas,
+  onChanged,
+}: {
+  release: ChangelogRelease;
+  areas: ChangelogArea[];
+  onChanged: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <PostEditor release={release} onSaved={onChanged} />
       <ItemComposer
-        releaseItems={items}
+        releaseId={release.id}
+        releaseItems={release.changelog_items ?? []}
         areas={areas}
-        onChanged={invalidate}
+        onChanged={onChanged}
       />
-
-      <PublishedReleases releases={releasesQuery.data ?? []} />
     </div>
   );
 }
@@ -150,32 +250,29 @@ export default function ChangelogPage() {
 // ─── Post editor (title + article body + hero image) ─────────────────
 
 function PostEditor({
-  draft,
+  release,
   onSaved,
 }: {
-  draft: ChangelogRelease;
+  release: ChangelogRelease;
   onSaved: () => void;
 }) {
-  const [titleFr, setTitleFr] = useState(draft.title_fr ?? "");
-  const [titleEn, setTitleEn] = useState(draft.title_en ?? "");
-  const [bodyFr, setBodyFr] = useState(draft.body_fr ?? "");
-  const [bodyEn, setBodyEn] = useState(draft.body_en ?? "");
+  const [titleFr, setTitleFr] = useState(release.title_fr ?? "");
+  const [titleEn, setTitleEn] = useState(release.title_en ?? "");
+  const [bodyFr, setBodyFr] = useState(release.body_fr ?? "");
+  const [bodyEn, setBodyEn] = useState(release.body_en ?? "");
   const [uploading, setUploading] = useState(false);
 
-  // Re-sync when the draft id changes (e.g. after a publish opens a new draft).
   useEffect(() => {
-    setTitleFr(draft.title_fr ?? "");
-    setTitleEn(draft.title_en ?? "");
-    setBodyFr(draft.body_fr ?? "");
-    setBodyEn(draft.body_en ?? "");
-  }, [draft.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    setTitleFr(release.title_fr ?? "");
+    setTitleEn(release.title_en ?? "");
+    setBodyFr(release.body_fr ?? "");
+    setBodyEn(release.body_en ?? "");
+  }, [release.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateChangelogRelease>[1]) =>
-      updateChangelogRelease(draft.id, payload),
-    onSuccess: () => {
-      onSaved();
-    },
+      updateChangelogRelease(release.id, payload),
+    onSuccess: onSaved,
     onError: (e) => toast.error(`Save failed: ${String(e)}`),
   });
 
@@ -192,7 +289,7 @@ function PostEditor({
     setUploading(true);
     try {
       const url = await uploadChangelogImage(file);
-      await updateChangelogRelease(draft.id, { image_url: url });
+      await updateChangelogRelease(release.id, { image_url: url });
       toast.success("Hero image updated");
       onSaved();
     } catch (e) {
@@ -207,8 +304,8 @@ function PostEditor({
       <CardHeader>
         <CardTitle>Release post</CardTitle>
         <CardDescription>
-          The headline, article body (Markdown), and hero image. English falls
-          back to French when left empty. Changes save when you click away.
+          Headline, article body (Markdown), and hero image. English falls back
+          to French when empty. Changes save when you click away.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -218,7 +315,7 @@ function PostEditor({
             <Input
               value={titleFr}
               onChange={(e) => setTitleFr(e.target.value)}
-              onBlur={() => saveField("title_fr", titleFr, draft.title_fr)}
+              onBlur={() => saveField("title_fr", titleFr, release.title_fr)}
               placeholder="Une grosse semaine pour vos cartes"
             />
           </div>
@@ -227,7 +324,7 @@ function PostEditor({
             <Input
               value={titleEn}
               onChange={(e) => setTitleEn(e.target.value)}
-              onBlur={() => saveField("title_en", titleEn, draft.title_en)}
+              onBlur={() => saveField("title_en", titleEn, release.title_en)}
               placeholder="A big week for your cards"
             />
           </div>
@@ -240,7 +337,7 @@ function PostEditor({
               className={cn(textareaClass, "min-h-28")}
               value={bodyFr}
               onChange={(e) => setBodyFr(e.target.value)}
-              onBlur={() => saveField("body_fr", bodyFr, draft.body_fr)}
+              onBlur={() => saveField("body_fr", bodyFr, release.body_fr)}
               placeholder="Racontez la nouveauté principale…"
             />
           </div>
@@ -250,7 +347,7 @@ function PostEditor({
               className={cn(textareaClass, "min-h-28")}
               value={bodyEn}
               onChange={(e) => setBodyEn(e.target.value)}
-              onBlur={() => saveField("body_en", bodyEn, draft.body_en)}
+              onBlur={() => saveField("body_en", bodyEn, release.body_en)}
               placeholder="Tell the story of the headline feature…"
             />
           </div>
@@ -258,20 +355,18 @@ function PostEditor({
 
         <div className="space-y-2">
           <Label>Hero image (optional)</Label>
-          {draft.image_url ? (
+          {release.image_url ? (
             <div className="flex items-start gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={draft.image_url}
+                src={release.image_url}
                 alt="Hero preview"
                 className="h-28 w-48 rounded-lg border object-cover"
               />
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  saveMutation.mutate({ image_url: null });
-                }}
+                onClick={() => saveMutation.mutate({ image_url: null })}
               >
                 <Trash className="h-4 w-4" /> Remove
               </Button>
@@ -279,7 +374,9 @@ function PostEditor({
           ) : (
             <label className="flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground hover:bg-muted/50">
               <ImageIcon className="h-5 w-5" />
-              <span className="text-xs">{uploading ? "Uploading…" : "Upload image"}</span>
+              <span className="text-xs">
+                {uploading ? "Uploading…" : "Upload image"}
+              </span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
@@ -312,10 +409,12 @@ const EMPTY_ITEM = {
 };
 
 function ItemComposer({
+  releaseId,
   releaseItems,
   areas,
   onChanged,
 }: {
+  releaseId: string;
   releaseItems: ChangelogItem[];
   areas: ChangelogArea[];
   onChanged: () => void;
@@ -341,7 +440,7 @@ function ItemComposer({
         body_en: form.body_en.trim() || null,
       };
       if (editingId) return updateChangelogItem(editingId, payload);
-      return createChangelogItem(payload);
+      return createChangelogItem(releaseId, payload);
     },
     onSuccess: () => {
       toast.success(editingId ? "Item updated" : "Item added");
@@ -377,7 +476,9 @@ function ItemComposer({
   const toggleRole = (role: ChangelogRole) => {
     setForm((f) => {
       const has = f.affects.includes(role);
-      const next = has ? f.affects.filter((r) => r !== role) : [...f.affects, role];
+      const next = has
+        ? f.affects.filter((r) => r !== role)
+        : [...f.affects, role];
       return { ...f, affects: next.length ? next : f.affects };
     });
   };
@@ -395,11 +496,10 @@ function ItemComposer({
         <CardTitle>Items ({releaseItems.length})</CardTitle>
         <CardDescription>
           Each line is tagged with a platform area and the roles it affects.
-          Owners and team members only receive the items that concern them.
+          Owners, admins, and scanners only receive the items that concern them.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Existing items */}
         <div className="space-y-2">
           {releaseItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -418,7 +518,7 @@ function ItemComposer({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium">{item.title_fr}</span>
-                      {area && <AreaChip area={area} />}
+                      {area && <AreaDot area={area} />}
                       <span className="text-[11px] text-muted-foreground">
                         {item.affects.map((r) => ROLE_LABELS[r]).join(" · ")}
                       </span>
@@ -430,7 +530,11 @@ function ItemComposer({
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => startEdit(item)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => startEdit(item)}
+                    >
                       <PencilSimple className="h-4 w-4" />
                     </Button>
                     <Button
@@ -447,7 +551,6 @@ function ItemComposer({
           )}
         </div>
 
-        {/* Composer form */}
         <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
           <p className="text-sm font-medium">
             {editingId ? "Edit item" : "Add item"}
@@ -490,9 +593,12 @@ function ItemComposer({
             </div>
             <div className="space-y-1.5">
               <Label>Affects</Label>
-              <div className="flex h-9 items-center gap-3">
+              <div className="flex h-9 flex-wrap items-center gap-x-3 gap-y-1">
                 {ALL_ROLES.map((role) => (
-                  <label key={role} className="flex items-center gap-1.5 text-sm">
+                  <label
+                    key={role}
+                    className="flex items-center gap-1.5 text-sm"
+                  >
                     <input
                       type="checkbox"
                       checked={form.affects.includes(role)}
@@ -510,7 +616,9 @@ function ItemComposer({
               <Label>Title (FR) *</Label>
               <Input
                 value={form.title_fr}
-                onChange={(e) => setForm((f) => ({ ...f, title_fr: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title_fr: e.target.value }))
+                }
                 placeholder="Nouvelles icônes de tampon"
               />
             </div>
@@ -518,7 +626,9 @@ function ItemComposer({
               <Label>Title (EN)</Label>
               <Input
                 value={form.title_en}
-                onChange={(e) => setForm((f) => ({ ...f, title_en: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title_en: e.target.value }))
+                }
                 placeholder="New stamp icons"
               />
             </div>
@@ -530,7 +640,9 @@ function ItemComposer({
               <textarea
                 className={cn(textareaClass, "min-h-16")}
                 value={form.body_fr}
-                onChange={(e) => setForm((f) => ({ ...f, body_fr: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, body_fr: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-1.5">
@@ -538,7 +650,9 @@ function ItemComposer({
               <textarea
                 className={cn(textareaClass, "min-h-16")}
                 value={form.body_en}
-                onChange={(e) => setForm((f) => ({ ...f, body_en: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, body_en: e.target.value }))
+                }
               />
             </div>
           </div>
@@ -564,7 +678,8 @@ function ItemComposer({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this item?</AlertDialogTitle>
             <AlertDialogDescription>
-              &ldquo;{deleting?.title_fr}&rdquo; will be removed from the draft.
+              &ldquo;{deleting?.title_fr}&rdquo; will be removed from this
+              release.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -581,7 +696,7 @@ function ItemComposer({
   );
 }
 
-// ─── Publish bar ─────────────────────────────────────────────────────
+// ─── Publish bar (draft only) ────────────────────────────────────────
 
 function PublishBar({
   draft,
@@ -651,47 +766,5 @@ function PublishBar({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-// ─── Published releases list ─────────────────────────────────────────
-
-function PublishedReleases({ releases }: { releases: ChangelogRelease[] }) {
-  const published = releases.filter((r) => r.status === "published");
-  if (published.length === 0) return null;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Published releases</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {published.map((r) => {
-          const count = Array.isArray(r.changelog_items)
-            ? (r.changelog_items[0] as unknown as { count?: number })?.count ?? 0
-            : 0;
-          return (
-            <div
-              key={r.id}
-              className="flex items-center justify-between rounded-lg border p-3 text-sm"
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-mono font-semibold">{r.version}</span>
-                <span className="text-muted-foreground">
-                  {r.title_fr || r.title_en || "Untitled"}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{count} items</span>
-                <span>
-                  {r.published_at
-                    ? new Date(r.published_at).toLocaleDateString()
-                    : ""}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
   );
 }
