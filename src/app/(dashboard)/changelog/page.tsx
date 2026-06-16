@@ -250,6 +250,89 @@ function ReleaseEditor({
 
 // ─── Post editor (title + article body + hero image) ─────────────────
 
+// A single hero-image slot (one per language). Uploads to the changelog bucket
+// and reports the URL up; `onChange(null)` removes it. Surfaces a load error so
+// a broken URL / missing bucket is visible instead of silently blank.
+function HeroSlot({
+  label,
+  url,
+  onChange,
+}: {
+  label: string;
+  url: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => setImgError(false), [url]);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      onChange(await uploadChangelogImage(file));
+    } catch (e) {
+      toast.error(`Upload failed: ${String(e)}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {url ? (
+        <div className="flex items-start gap-3">
+          {imgError ? (
+            <div className="flex h-28 w-44 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-destructive/50 px-2 text-center text-xs text-destructive">
+              <ImageIcon className="h-5 w-5" />
+              <span>Image didn&apos;t load. Check the URL or storage bucket.</span>
+            </div>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={url}
+              src={url}
+              alt={`${label} hero preview`}
+              onError={() => setImgError(true)}
+              className="h-28 w-44 rounded-lg border object-cover"
+            />
+          )}
+          <div className="flex flex-col gap-2">
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Open
+            </a>
+            <Button variant="outline" size="sm" onClick={() => onChange(null)}>
+              <Trash className="h-4 w-4" /> Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <label className="flex h-28 w-44 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground hover:bg-muted/50">
+          <ImageIcon className="h-5 w-5" />
+          <span className="text-xs">{uploading ? "Uploading…" : "Upload image"}</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFile(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 function PostEditor({
   release,
   onSaved,
@@ -261,8 +344,6 @@ function PostEditor({
   const [titleEn, setTitleEn] = useState(release.title_en ?? "");
   const [bodyFr, setBodyFr] = useState(release.body_fr ?? "");
   const [bodyEn, setBodyEn] = useState(release.body_en ?? "");
-  const [uploading, setUploading] = useState(false);
-  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     setTitleFr(release.title_fr ?? "");
@@ -270,9 +351,6 @@ function PostEditor({
     setBodyFr(release.body_fr ?? "");
     setBodyEn(release.body_en ?? "");
   }, [release.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset the load-error flag whenever the hero URL changes (new upload, edit).
-  useEffect(() => setImgError(false), [release.image_url]);
 
   const saveMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateChangelogRelease>[1]) =>
@@ -288,20 +366,6 @@ function PostEditor({
   ) => {
     if (value === (original ?? "")) return;
     saveMutation.mutate({ [field]: value || null });
-  };
-
-  const handleImage = async (file: File) => {
-    setUploading(true);
-    try {
-      const url = await uploadChangelogImage(file);
-      await updateChangelogRelease(release.id, { image_url: url });
-      toast.success("Hero image updated");
-      onSaved();
-    } catch (e) {
-      toast.error(`Upload failed: ${String(e)}`);
-    } finally {
-      setUploading(false);
-    }
   };
 
   return (
@@ -358,60 +422,22 @@ function PostEditor({
 
         <div className="space-y-2">
           <Label>Hero image (optional)</Label>
-          {release.image_url ? (
-            <div className="flex items-start gap-4">
-              {imgError ? (
-                <div className="flex h-28 w-48 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-destructive/50 px-2 text-center text-xs text-destructive">
-                  <ImageIcon className="h-5 w-5" />
-                  <span>Image didn&apos;t load. Check the URL or storage bucket.</span>
-                </div>
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  key={release.image_url}
-                  src={release.image_url}
-                  alt="Hero preview"
-                  onError={() => setImgError(true)}
-                  className="h-28 w-48 rounded-lg border object-cover"
-                />
-              )}
-              <div className="flex flex-col gap-2">
-                <a
-                  href={release.image_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                >
-                  Open original
-                </a>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => saveMutation.mutate({ image_url: null })}
-                >
-                  <Trash className="h-4 w-4" /> Remove
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <label className="flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground hover:bg-muted/50">
-              <ImageIcon className="h-5 w-5" />
-              <span className="text-xs">
-                {uploading ? "Uploading…" : "Upload image"}
-              </span>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                disabled={uploading}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImage(file);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-          )}
+          <p className="text-xs text-muted-foreground">
+            One per language so the screenshot can match the UI the reader sees.
+            English falls back to the French image when left empty.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HeroSlot
+              label="French"
+              url={release.image_url_fr}
+              onChange={(url) => saveMutation.mutate({ image_url_fr: url })}
+            />
+            <HeroSlot
+              label="English (optional)"
+              url={release.image_url_en}
+              onChange={(url) => saveMutation.mutate({ image_url_en: url })}
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

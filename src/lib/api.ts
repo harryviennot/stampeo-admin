@@ -1501,7 +1501,8 @@ export interface ChangelogRelease {
   title_en: string | null;
   body_fr: string | null;
   body_en: string | null;
-  image_url: string | null;
+  image_url_fr: string | null;
+  image_url_en: string | null;
   period: string;
   published_at: string | null;
   created_at: string;
@@ -1531,7 +1532,8 @@ export interface ChangelogReleaseInput {
   title_en?: string | null;
   body_fr?: string | null;
   body_en?: string | null;
-  image_url?: string | null;
+  image_url_fr?: string | null;
+  image_url_en?: string | null;
 }
 
 export async function fetchChangelogDraft(): Promise<ChangelogDraftResponse> {
