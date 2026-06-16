@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { adminKeys } from "@/lib/query-keys";
 import { AreaDot } from "@/components/changelog-area-chip";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import {
   type ChangelogArea,
   type ChangelogCategory,
@@ -261,6 +262,7 @@ function PostEditor({
   const [bodyFr, setBodyFr] = useState(release.body_fr ?? "");
   const [bodyEn, setBodyEn] = useState(release.body_en ?? "");
   const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     setTitleFr(release.title_fr ?? "");
@@ -268,6 +270,9 @@ function PostEditor({
     setBodyFr(release.body_fr ?? "");
     setBodyEn(release.body_en ?? "");
   }, [release.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset the load-error flag whenever the hero URL changes (new upload, edit).
+  useEffect(() => setImgError(false), [release.image_url]);
 
   const saveMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateChangelogRelease>[1]) =>
@@ -333,20 +338,18 @@ function PostEditor({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Article body (FR) — Markdown</Label>
-            <textarea
-              className={cn(textareaClass, "min-h-28")}
+            <MarkdownEditor
               value={bodyFr}
-              onChange={(e) => setBodyFr(e.target.value)}
+              onChange={setBodyFr}
               onBlur={() => saveField("body_fr", bodyFr, release.body_fr)}
               placeholder="Racontez la nouveauté principale…"
             />
           </div>
           <div className="space-y-1.5">
             <Label>Article body (EN) — Markdown</Label>
-            <textarea
-              className={cn(textareaClass, "min-h-28")}
+            <MarkdownEditor
               value={bodyEn}
-              onChange={(e) => setBodyEn(e.target.value)}
+              onChange={setBodyEn}
               onBlur={() => saveField("body_en", bodyEn, release.body_en)}
               placeholder="Tell the story of the headline feature…"
             />
@@ -357,19 +360,38 @@ function PostEditor({
           <Label>Hero image (optional)</Label>
           {release.image_url ? (
             <div className="flex items-start gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={release.image_url}
-                alt="Hero preview"
-                className="h-28 w-48 rounded-lg border object-cover"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => saveMutation.mutate({ image_url: null })}
-              >
-                <Trash className="h-4 w-4" /> Remove
-              </Button>
+              {imgError ? (
+                <div className="flex h-28 w-48 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-destructive/50 px-2 text-center text-xs text-destructive">
+                  <ImageIcon className="h-5 w-5" />
+                  <span>Image didn&apos;t load. Check the URL or storage bucket.</span>
+                </div>
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  key={release.image_url}
+                  src={release.image_url}
+                  alt="Hero preview"
+                  onError={() => setImgError(true)}
+                  className="h-28 w-48 rounded-lg border object-cover"
+                />
+              )}
+              <div className="flex flex-col gap-2">
+                <a
+                  href={release.image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Open original
+                </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => saveMutation.mutate({ image_url: null })}
+                >
+                  <Trash className="h-4 w-4" /> Remove
+                </Button>
+              </div>
             </div>
           ) : (
             <label className="flex h-28 w-48 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground hover:bg-muted/50">
@@ -636,23 +658,19 @@ function ItemComposer({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Detail (FR)</Label>
-              <textarea
-                className={cn(textareaClass, "min-h-16")}
+              <Label>Detail (FR) — Markdown</Label>
+              <MarkdownEditor
                 value={form.body_fr}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, body_fr: e.target.value }))
-                }
+                onChange={(v) => setForm((f) => ({ ...f, body_fr: v }))}
+                minHeight="min-h-20"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Detail (EN)</Label>
-              <textarea
-                className={cn(textareaClass, "min-h-16")}
+              <Label>Detail (EN) — Markdown</Label>
+              <MarkdownEditor
                 value={form.body_en}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, body_en: e.target.value }))
-                }
+                onChange={(v) => setForm((f) => ({ ...f, body_en: v }))}
+                minHeight="min-h-20"
               />
             </div>
           </div>
