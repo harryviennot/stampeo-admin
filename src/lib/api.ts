@@ -1464,3 +1464,188 @@ export async function fetchEmailFlows(): Promise<EmailFlow[]> {
   const data = await res.json();
   return data.flows as EmailFlow[];
 }
+
+// ─── Changelog authoring ────────────────────────────────────────
+
+export type ChangelogCategory = "feature" | "improvement" | "fix";
+export type ChangelogRole = "owner" | "admin" | "scanner";
+
+export interface ChangelogArea {
+  slug: string;
+  label_fr: string;
+  label_en: string;
+  color: string;
+  sort_order: number;
+}
+
+export interface ChangelogItem {
+  id: string;
+  release_id: string;
+  category: ChangelogCategory;
+  area: string | null;
+  affects: ChangelogRole[];
+  title_fr: string;
+  title_en: string | null;
+  body_fr: string | null;
+  body_en: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChangelogRelease {
+  id: string;
+  status: "draft" | "published";
+  version: string | null;
+  title_fr: string | null;
+  title_en: string | null;
+  body_fr: string | null;
+  body_en: string | null;
+  image_url_fr: string | null;
+  image_url_en: string | null;
+  period: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  changelog_items?: ChangelogItem[];
+}
+
+export interface ChangelogDraftResponse {
+  draft: ChangelogRelease;
+  areas: ChangelogArea[];
+  suggested_version: string;
+}
+
+export interface ChangelogItemInput {
+  category: ChangelogCategory;
+  area?: string | null;
+  affects?: ChangelogRole[];
+  title_fr: string;
+  title_en?: string | null;
+  body_fr?: string | null;
+  body_en?: string | null;
+  sort_order?: number;
+}
+
+export interface ChangelogReleaseInput {
+  title_fr?: string | null;
+  title_en?: string | null;
+  body_fr?: string | null;
+  body_en?: string | null;
+  image_url_fr?: string | null;
+  image_url_en?: string | null;
+}
+
+export async function fetchChangelogDraft(): Promise<ChangelogDraftResponse> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/draft`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchChangelogReleases(): Promise<ChangelogRelease[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/releases`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.releases as ChangelogRelease[];
+}
+
+export async function fetchChangelogRelease(id: string): Promise<ChangelogRelease> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/releases/${id}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.release as ChangelogRelease;
+}
+
+export async function updateChangelogRelease(
+  id: string,
+  payload: ChangelogReleaseInput
+): Promise<ChangelogRelease> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/releases/${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.release as ChangelogRelease;
+}
+
+export async function uploadChangelogImage(file: File): Promise<string> {
+  const headers = await getAuthHeadersForFormData();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/upload-image`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.url as string;
+}
+
+export async function createChangelogItem(
+  releaseId: string,
+  payload: ChangelogItemInput
+): Promise<ChangelogItem> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/changelog/releases/${releaseId}/items`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.item as ChangelogItem;
+}
+
+export async function updateChangelogItem(
+  id: string,
+  payload: Partial<ChangelogItemInput>
+): Promise<ChangelogItem> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/items/${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.item as ChangelogItem;
+}
+
+export async function deleteChangelogItem(id: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/changelog/items/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export async function publishChangelogRelease(
+  id: string,
+  version: string
+): Promise<ChangelogRelease> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/changelog/releases/${id}/publish`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ version }),
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.release as ChangelogRelease;
+}

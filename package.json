@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.1.0",
+  "version": "1.10.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3002",
@@ -24,7 +24,10 @@
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^9",
     "recharts": "^3.8.0",
+    "rehype-raw": "^7",
+    "remark-gfm": "^4",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0"
   },
