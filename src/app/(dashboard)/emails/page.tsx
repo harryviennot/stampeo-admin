@@ -28,6 +28,16 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   campaigns: "One-shot manual blasts",
 };
 
+// Winback / reclaim emails lead with the business's own numbers. For a
+// business that never got a customer those are all zero, so each has a
+// "never activated" variant (backend `?empty=true`). Let reviewers see it.
+const EMPTY_CAPABLE = new Set([
+  "lifecycle/winback/winback_s1",
+  "lifecycle/winback/winback_s2",
+  "lifecycle/reclaim/reclaim_warning_t30",
+  "lifecycle/reclaim/reclaim_warning_t14",
+]);
+
 export default function EmailsPage() {
   return (
     <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
@@ -53,6 +63,9 @@ function EmailsPageInner() {
     "classic" | "segments" | "trend" | "milestone"
   >("milestone");
   const [action, setAction] = useState<string>("close_to_reward");
+  // Activity toggle for winback/reclaim: false = real numbers, true = never
+  // activated (all metrics zero, shows the encouraging/soft variant).
+  const [empty, setEmpty] = useState(false);
 
   const { data: templates, isLoading: templatesLoading } = useQuery({
     queryKey: adminKeys.emails.list,
@@ -83,13 +96,19 @@ function EmailsPageInner() {
   }, [templateParam]);
 
   const templateKey = selected ? `${selected.category}/${selected.name}` : "";
+  const isDigest =
+    templateKey === "lifecycle/digest/weekly_digest" ||
+    templateKey === "lifecycle/digest/monthly_recap";
+  const supportsEmpty = EMPTY_CAPABLE.has(templateKey);
   const variantParams = useMemo<Record<string, string> | undefined>(() => {
     if (templateKey === "lifecycle/digest/weekly_digest")
       return { health, insight, action } as Record<string, string>;
     if (templateKey === "lifecycle/digest/monthly_recap")
       return { health } as Record<string, string>;
+    if (EMPTY_CAPABLE.has(templateKey))
+      return (empty ? { empty: "true" } : {}) as Record<string, string>;
     return undefined;
-  }, [templateKey, health, insight, action]);
+  }, [templateKey, health, insight, action, empty]);
   const variantKey = variantParams ? JSON.stringify(variantParams) : "";
 
   const { data: html, isLoading: previewLoading } = useQuery({
@@ -234,16 +253,29 @@ function EmailsPageInner() {
 
               {variantParams && (
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-muted/30 px-4 py-2">
-                  <ChipGroup
-                    label="Tone"
-                    value={health}
-                    options={[
-                      { value: "up", label: "Growth" },
-                      { value: "steady", label: "Steady" },
-                      { value: "down", label: "Down" },
-                    ]}
-                    onChange={(v) => setHealth(v as typeof health)}
-                  />
+                  {isDigest && (
+                    <ChipGroup
+                      label="Tone"
+                      value={health}
+                      options={[
+                        { value: "up", label: "Growth" },
+                        { value: "steady", label: "Steady" },
+                        { value: "down", label: "Down" },
+                      ]}
+                      onChange={(v) => setHealth(v as typeof health)}
+                    />
+                  )}
+                  {supportsEmpty && (
+                    <ChipGroup
+                      label="Activity"
+                      value={empty ? "empty" : "active"}
+                      options={[
+                        { value: "active", label: "Has activity" },
+                        { value: "empty", label: "Never activated (0)" },
+                      ]}
+                      onChange={(v) => setEmpty(v === "empty")}
+                    />
+                  )}
                   {templateKey === "lifecycle/digest/weekly_digest" && (
                     <>
                       <ChipGroup
