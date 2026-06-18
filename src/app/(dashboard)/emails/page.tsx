@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mail, Globe } from "lucide-react";
 
-type Locale = "fr" | "en";
+type Locale = "fr" | "en" | "es";
 
 const CATEGORY_ORDER = ["transactional", "lifecycle", "campaigns"] as const;
 const CATEGORY_LABELS: Record<string, string> = {
@@ -53,7 +53,7 @@ function EmailsPageInner() {
   const templateParam = searchParams.get("template");
   const localeParam = (searchParams.get("locale") as Locale | null) ?? "fr";
   const [locale, setLocale] = useState<Locale>(
-    localeParam === "en" ? "en" : "fr"
+    localeParam === "en" ? "en" : localeParam === "es" ? "es" : "fr"
   );
 
   // Variant knobs for the parameterized previews (digest tone / insight /
@@ -173,6 +173,11 @@ function EmailsPageInner() {
             label="EN"
             active={locale === "en"}
             onClick={() => changeLocale("en")}
+          />
+          <LocaleButton
+            label="ES"
+            active={locale === "es"}
+            onClick={() => changeLocale("es")}
           />
         </div>
       </header>

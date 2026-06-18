@@ -84,7 +84,7 @@ export const adminKeys = {
     preview: (
       category: string,
       name: string,
-      locale: "fr" | "en",
+      locale: "fr" | "en" | "es",
       variant?: string
     ) => ["emails", "preview", category, name, locale, variant ?? ""] as const,
     flows: ["emails", "flows"] as const,

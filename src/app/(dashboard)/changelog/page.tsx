@@ -342,14 +342,18 @@ function PostEditor({
 }) {
   const [titleFr, setTitleFr] = useState(release.title_fr ?? "");
   const [titleEn, setTitleEn] = useState(release.title_en ?? "");
+  const [titleEs, setTitleEs] = useState(release.title_es ?? "");
   const [bodyFr, setBodyFr] = useState(release.body_fr ?? "");
   const [bodyEn, setBodyEn] = useState(release.body_en ?? "");
+  const [bodyEs, setBodyEs] = useState(release.body_es ?? "");
 
   useEffect(() => {
     setTitleFr(release.title_fr ?? "");
     setTitleEn(release.title_en ?? "");
+    setTitleEs(release.title_es ?? "");
     setBodyFr(release.body_fr ?? "");
     setBodyEn(release.body_en ?? "");
+    setBodyEs(release.body_es ?? "");
   }, [release.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveMutation = useMutation({
@@ -360,7 +364,13 @@ function PostEditor({
   });
 
   const saveField = (
-    field: "title_fr" | "title_en" | "body_fr" | "body_en",
+    field:
+      | "title_fr"
+      | "title_en"
+      | "title_es"
+      | "body_fr"
+      | "body_en"
+      | "body_es",
     value: string,
     original: string | null
   ) => {
@@ -373,12 +383,12 @@ function PostEditor({
       <CardHeader>
         <CardTitle>Release post</CardTitle>
         <CardDescription>
-          Headline, article body (Markdown), and hero image. English falls back
-          to French when empty. Changes save when you click away.
+          Headline, article body (Markdown), and hero image. English and Spanish
+          fall back to French when empty. Changes save when you click away.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label>Title (FR)</Label>
             <Input
@@ -397,9 +407,18 @@ function PostEditor({
               placeholder="A big week for your cards"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>Title (ES)</Label>
+            <Input
+              value={titleEs}
+              onChange={(e) => setTitleEs(e.target.value)}
+              onBlur={() => saveField("title_es", titleEs, release.title_es)}
+              placeholder="Una gran semana para tus tarjetas"
+            />
+          </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label>Article body (FR) — Markdown</Label>
             <MarkdownEditor
@@ -418,15 +437,24 @@ function PostEditor({
               placeholder="Tell the story of the headline feature…"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>Article body (ES) — Markdown</Label>
+            <MarkdownEditor
+              value={bodyEs}
+              onChange={setBodyEs}
+              onBlur={() => saveField("body_es", bodyEs, release.body_es)}
+              placeholder="Cuenta la novedad principal…"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
           <Label>Hero image (optional)</Label>
           <p className="text-xs text-muted-foreground">
             One per language so the screenshot can match the UI the reader sees.
-            English falls back to the French image when left empty.
+            English and Spanish fall back to the French image when left empty.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <HeroSlot
               label="French"
               url={release.image_url_fr}
@@ -436,6 +464,11 @@ function PostEditor({
               label="English (optional)"
               url={release.image_url_en}
               onChange={(url) => saveMutation.mutate({ image_url_en: url })}
+            />
+            <HeroSlot
+              label="Spanish (optional)"
+              url={release.image_url_es}
+              onChange={(url) => saveMutation.mutate({ image_url_es: url })}
             />
           </div>
         </div>
@@ -452,8 +485,10 @@ const EMPTY_ITEM = {
   affects: [...ALL_ROLES] as ChangelogRole[],
   title_fr: "",
   title_en: "",
+  title_es: "",
   body_fr: "",
   body_en: "",
+  body_es: "",
 };
 
 function ItemComposer({
@@ -484,8 +519,10 @@ function ItemComposer({
         affects: form.affects,
         title_fr: form.title_fr.trim(),
         title_en: form.title_en.trim() || null,
+        title_es: form.title_es.trim() || null,
         body_fr: form.body_fr.trim() || null,
         body_en: form.body_en.trim() || null,
+        body_es: form.body_es.trim() || null,
       };
       if (editingId) return updateChangelogItem(editingId, payload);
       return createChangelogItem(releaseId, payload);
@@ -516,8 +553,10 @@ function ItemComposer({
       affects: item.affects?.length ? item.affects : [...ALL_ROLES],
       title_fr: item.title_fr,
       title_en: item.title_en ?? "",
+      title_es: item.title_es ?? "",
       body_fr: item.body_fr ?? "",
       body_en: item.body_en ?? "",
+      body_es: item.body_es ?? "",
     });
   };
 
@@ -574,6 +613,11 @@ function ItemComposer({
                     {item.title_en && (
                       <p className="truncate text-xs text-muted-foreground">
                         EN: {item.title_en}
+                      </p>
+                    )}
+                    {item.title_es && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        ES: {item.title_es}
                       </p>
                     )}
                   </div>
@@ -659,7 +703,7 @@ function ItemComposer({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Title (FR) *</Label>
               <Input
@@ -680,9 +724,19 @@ function ItemComposer({
                 placeholder="New stamp icons"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label>Title (ES)</Label>
+              <Input
+                value={form.title_es}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title_es: e.target.value }))
+                }
+                placeholder="Nuevos iconos de sello"
+              />
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Detail (FR) — Markdown</Label>
               <MarkdownEditor
@@ -696,6 +750,14 @@ function ItemComposer({
               <MarkdownEditor
                 value={form.body_en}
                 onChange={(v) => setForm((f) => ({ ...f, body_en: v }))}
+                minHeight="min-h-20"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Detail (ES) — Markdown</Label>
+              <MarkdownEditor
+                value={form.body_es}
+                onChange={(v) => setForm((f) => ({ ...f, body_es: v }))}
                 minHeight="min-h-20"
               />
             </div>
