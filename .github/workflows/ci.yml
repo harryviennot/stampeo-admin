@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  type-check-and-build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_COOKIE_DOMAIN: localhost
+      NEXT_PUBLIC_SHOWCASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bunx tsc --noEmit
+      - run: bun run build
+
+  audit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - name: Security audit (fail on high/critical only)
+        run: |
+          OUTPUT=$(bun audit 2>&1) || true
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -qi '\bhigh\b\|critical' && exit 1 || true

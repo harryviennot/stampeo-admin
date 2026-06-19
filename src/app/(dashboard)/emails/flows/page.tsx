@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mail, Globe, ArrowRight, Clock, Zap, CalendarClock } from "lucide-react";
 
-type Locale = "fr" | "en";
+type Locale = "fr" | "en" | "es";
 
 const TRIGGER_META: Record<
   string,
@@ -91,6 +91,7 @@ function EmailFlowsInner() {
             <Globe className="ml-2 h-4 w-4 text-muted-foreground" />
             <LocaleButton label="FR" active={locale === "fr"} onClick={() => setLocale("fr")} />
             <LocaleButton label="EN" active={locale === "en"} onClick={() => setLocale("en")} />
+            <LocaleButton label="ES" active={locale === "es"} onClick={() => setLocale("es")} />
           </div>
         </div>
       </header>

@@ -1415,7 +1415,7 @@ export async function fetchEmailTemplates(): Promise<EmailTemplateRef[]> {
 export async function fetchEmailPreviewHtml(
   category: string,
   name: string,
-  locale: "fr" | "en",
+  locale: "fr" | "en" | "es",
   extraParams?: Record<string, string>
 ): Promise<string> {
   const headers = await getAuthHeaders();
@@ -1474,6 +1474,7 @@ export interface ChangelogArea {
   slug: string;
   label_fr: string;
   label_en: string;
+  label_es: string | null;
   color: string;
   sort_order: number;
 }
@@ -1486,8 +1487,10 @@ export interface ChangelogItem {
   affects: ChangelogRole[];
   title_fr: string;
   title_en: string | null;
+  title_es: string | null;
   body_fr: string | null;
   body_en: string | null;
+  body_es: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -1499,10 +1502,13 @@ export interface ChangelogRelease {
   version: string | null;
   title_fr: string | null;
   title_en: string | null;
+  title_es: string | null;
   body_fr: string | null;
   body_en: string | null;
+  body_es: string | null;
   image_url_fr: string | null;
   image_url_en: string | null;
+  image_url_es: string | null;
   period: string;
   published_at: string | null;
   created_at: string;
@@ -1522,18 +1528,23 @@ export interface ChangelogItemInput {
   affects?: ChangelogRole[];
   title_fr: string;
   title_en?: string | null;
+  title_es?: string | null;
   body_fr?: string | null;
   body_en?: string | null;
+  body_es?: string | null;
   sort_order?: number;
 }
 
 export interface ChangelogReleaseInput {
   title_fr?: string | null;
   title_en?: string | null;
+  title_es?: string | null;
   body_fr?: string | null;
   body_en?: string | null;
+  body_es?: string | null;
   image_url_fr?: string | null;
   image_url_en?: string | null;
+  image_url_es?: string | null;
 }
 
 export async function fetchChangelogDraft(): Promise<ChangelogDraftResponse> {
