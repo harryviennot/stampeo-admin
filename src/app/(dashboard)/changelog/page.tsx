@@ -13,6 +13,7 @@ import {
   Rocket,
   CaretDown,
   CaretRight,
+  PaperPlaneTilt,
 } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import {
   fetchChangelogRelease,
   fetchChangelogReleases,
   publishChangelogRelease,
+  resendChangelogRelease,
   updateChangelogItem,
   updateChangelogRelease,
   uploadChangelogImage,
@@ -170,6 +172,7 @@ function PublishedReleaseRow({
   onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmResend, setConfirmResend] = useState(false);
   const full = useQuery({
     queryKey: adminKeys.changelog.release(release.id),
     queryFn: () => fetchChangelogRelease(release.id),
@@ -179,31 +182,81 @@ function PublishedReleaseRow({
     ? (release.changelog_items[0] as unknown as { count?: number })?.count ?? 0
     : 0;
 
+  const resendMutation = useMutation({
+    mutationFn: () => resendChangelogRelease(release.id),
+    onSuccess: () => {
+      toast.success(`Resend queued for ${release.version} — emailing everyone`);
+      setConfirmResend(false);
+    },
+    onError: (e) => toast.error(`Resend failed: ${String(e)}`),
+  });
+
   return (
     <Card className="overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/40"
+      <div className="flex w-full items-center hover:bg-muted/40">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-center gap-3 p-4 text-left"
+        >
+          {open ? (
+            <CaretDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <CaretRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <span className="font-mono text-sm font-semibold">
+            {release.version}
+          </span>
+          <span className="flex-1 truncate text-sm text-muted-foreground">
+            {release.title_fr || release.title_en || "Untitled"}
+          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {count} items
+          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {release.published_at
+              ? new Date(release.published_at).toLocaleDateString()
+              : ""}
+          </span>
+        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-3 shrink-0 text-muted-foreground"
+          onClick={() => setConfirmResend(true)}
+        >
+          <PaperPlaneTilt className="h-4 w-4" /> Send again to all
+        </Button>
+      </div>
+
+      <AlertDialog
+        open={confirmResend}
+        onOpenChange={(o) => !o && setConfirmResend(false)}
       >
-        {open ? (
-          <CaretDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-        ) : (
-          <CaretRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        )}
-        <span className="font-mono text-sm font-semibold">{release.version}</span>
-        <span className="flex-1 truncate text-sm text-muted-foreground">
-          {release.title_fr || release.title_en || "Untitled"}
-        </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {count} items
-        </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {release.published_at
-            ? new Date(release.published_at).toLocaleDateString()
-            : ""}
-        </span>
-      </button>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Send {release.version} again to everyone?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This re-emails the product update to every owner, admin, and
+              scanner whose role is affected by this release — including people
+              who already received it. Use it to re-send after a broken send.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                resendMutation.mutate();
+              }}
+            >
+              {resendMutation.isPending ? "Sending…" : "Send again to all"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {open && (
         <div className="border-t p-4">
           {full.isLoading || !full.data ? (

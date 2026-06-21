@@ -1660,3 +1660,21 @@ export async function publishChangelogRelease(
   const data = await res.json();
   return data.release as ChangelogRelease;
 }
+
+// Re-send the product-update email for an already-published release to every
+// eligible recipient (resets that week's dedupe on the backend).
+export async function resendChangelogRelease(
+  id: string
+): Promise<ChangelogRelease> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/changelog/releases/${id}/resend`,
+    {
+      method: "POST",
+      headers,
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.release as ChangelogRelease;
+}
