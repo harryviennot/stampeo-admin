@@ -95,4 +95,10 @@ export const adminKeys = {
     releases: ["changelog", "releases"] as const,
     release: (id: string) => ["changelog", "release", id] as const,
   },
+  studio: {
+    all: ["studio"] as const,
+    list: ["studio", "list"] as const,
+    detail: (id: string) => ["studio", "detail", id] as const,
+    health: ["studio", "health"] as const,
+  },
 };

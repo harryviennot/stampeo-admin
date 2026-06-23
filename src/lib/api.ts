@@ -1678,3 +1678,158 @@ export async function resendChangelogRelease(
   const data = await res.json();
   return data.release as ChangelogRelease;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Card Studio (dev-only internal wallet-card design sandbox)
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface StudioReward {
+  threshold: number;
+  name: string;
+}
+
+export interface StudioSpec {
+  variant_id: string;
+  label: string;
+  type: "stamp" | "points";
+  points_per_currency_unit: number;
+  stamp_per_scan: number;
+  rewards: StudioReward[];
+  redemption_policy: "stack" | "reset";
+  max_stacked_rewards: number | null;
+  layout_template: string;
+  primary_locale: string;
+  organization_name: string;
+  logo_text: string;
+  background_color: string;
+  foreground_color: string;
+  label_color: string;
+  accent_color: string;
+  stamp_empty_color: string;
+  stamp_border_color: string;
+  stamp_icon: string;
+  reward_icon: string;
+  icon_color: string;
+  back_fields: { key: string; label: string; value: string }[];
+  mock_value: number;
+  mock_lifetime: number;
+  mock_banked_rewards: number;
+  customer_name: string;
+}
+
+export interface StudioVariant {
+  spec: StudioSpec;
+  installed: boolean;
+  updated_at?: string | null;
+  install_url?: string;
+  strip_url?: string;
+}
+
+export interface StudioHealth {
+  base_url: string;
+  is_tunnel: boolean;
+  web_service_url: string;
+  templates: string[];
+  pass_type_identifier?: string;
+  cert_ok: boolean;
+  cert_error?: string;
+  pool?: PoolStats;
+  pool_error?: string;
+}
+
+export function studioStripUrl(variantId: string): string {
+  return `${API_BASE_URL}/studio/strip/${variantId}.png`;
+}
+
+export function studioInstallUrl(variantId: string): string {
+  return `${API_BASE_URL}/studio/pass/${variantId}`;
+}
+
+export async function fetchStudioVariants(): Promise<{
+  variants: StudioVariant[];
+  templates: string[];
+}> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/variants`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchStudioVariant(
+  id: string
+): Promise<{
+  spec: StudioSpec;
+  installed: boolean;
+  install_url: string;
+  strip_url?: string;
+}> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/variants/${id}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function upsertStudioVariant(
+  id: string,
+  spec: StudioSpec
+): Promise<{ spec: StudioSpec; install_url: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/variants/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(spec),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deleteStudioVariant(id: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/variants/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export async function seedStudioVariants(): Promise<{
+  variants: StudioVariant[];
+  templates: string[];
+}> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/seed`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function pushStudioVariant(id: string): Promise<unknown> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/variants/${id}/push`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function pushAllStudio(): Promise<{ pushed: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/push`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchStudioHealth(): Promise<StudioHealth> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/studio/health`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
