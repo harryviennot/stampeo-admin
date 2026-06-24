@@ -1688,6 +1688,29 @@ export interface StudioReward {
   name: string;
 }
 
+export interface LayoutConfig {
+  strip: string;
+  header: string[];
+  primary: string[];
+  secondary: string[];
+  auxiliary: string[];
+  back: string[];
+}
+
+export interface PaletteElement {
+  key: string;
+  label: string;
+  slots: string[];
+}
+
+export interface StudioPalette {
+  strips: string[];
+  points_strip_styles: string[];
+  slots: string[];
+  elements: PaletteElement[];
+  presets: Record<string, LayoutConfig>;
+}
+
 export interface StudioSpec {
   variant_id: string;
   label: string;
@@ -1698,6 +1721,7 @@ export interface StudioSpec {
   redemption_policy: "stack" | "reset";
   max_stacked_rewards: number | null;
   layout_template: string;
+  layout?: LayoutConfig | null;
   primary_locale: string;
   organization_name: string;
   logo_text: string;
@@ -1745,9 +1769,33 @@ export function studioInstallUrl(variantId: string): string {
   return `${API_BASE_URL}/studio/pass/${variantId}`;
 }
 
+export function studioStripPreviewUrl(params: {
+  style: string;
+  value: number;
+  goal: number;
+  bg: string;
+  fg: string;
+  accent: string;
+  label: string;
+  locale?: string;
+}): string {
+  const q = new URLSearchParams({
+    style: params.style,
+    value: String(params.value),
+    goal: String(params.goal),
+    bg: params.bg,
+    fg: params.fg,
+    accent: params.accent,
+    label: params.label,
+    locale: params.locale ?? "fr",
+  });
+  return `${API_BASE_URL}/studio/strip-preview?${q.toString()}`;
+}
+
 export async function fetchStudioVariants(): Promise<{
   variants: StudioVariant[];
   templates: string[];
+  palette: StudioPalette;
 }> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/studio/variants`, { headers });
@@ -1762,6 +1810,7 @@ export async function fetchStudioVariant(
   installed: boolean;
   install_url: string;
   strip_url?: string;
+  layout: LayoutConfig;
 }> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/studio/variants/${id}`, {

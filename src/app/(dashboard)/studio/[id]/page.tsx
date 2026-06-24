@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StudioSpec, studioInstallUrl, studioStripUrl } from "@/lib/api";
+import {
+  LayoutConfig,
+  StudioPalette,
+  StudioSpec,
+  studioInstallUrl,
+  studioStripUrl,
+} from "@/lib/api";
 import {
   useDeleteStudio,
   usePushStudio,
@@ -19,6 +25,14 @@ import {
 } from "@/hooks/use-studio";
 
 import { InstallQR } from "../_components/install-qr";
+
+const SLOT_LABELS: Record<string, string> = {
+  header: "Header (top-right · glanceable)",
+  primary: "Primary (big · hidden when a strip is set)",
+  secondary: "Secondary (row below)",
+  auxiliary: "Auxiliary (row below)",
+  back: "Back of card",
+};
 
 const SELECT =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
@@ -37,19 +51,26 @@ export default function EditStudioVariant() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (data?.spec) setSpec(data.spec);
+    // Seed the editor with the effective layout (custom, else the preset's).
+    if (data?.spec) setSpec({ ...data.spec, layout: data.spec.layout ?? data.layout });
   }, [data]);
 
   if (isLoading || !spec) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
 
-  const templates = list.data?.templates ?? [spec.layout_template];
+  const palette = list.data?.palette;
   const installUrl = data?.install_url ?? studioInstallUrl(id);
   const stripBase = data?.strip_url ?? studioStripUrl(id);
   const update = (patch: Partial<StudioSpec>) =>
     setSpec((s) => (s ? { ...s, ...patch } : s));
   const num = (v: string) => (v === "" ? 0 : Number(v));
+
+  function loadPreset(name: string) {
+    const preset = palette?.presets[name];
+    if (!preset) return;
+    update({ layout_template: name, layout: { ...preset } });
+  }
 
   function save() {
     if (!spec) return;
@@ -82,7 +103,7 @@ export default function EditStudioVariant() {
     });
   }
 
-  const stripVisible = !spec.layout_template.startsWith("points-text");
+  const stripVisible = (spec.layout?.strip ?? "none") !== "none";
 
   return (
     <div className="space-y-6">
@@ -146,19 +167,6 @@ export default function EditStudioVariant() {
                 </select>
               </Field>
             </div>
-            <Field label="Layout template">
-              <select
-                className={SELECT}
-                value={spec.layout_template}
-                onChange={(e) => update({ layout_template: e.target.value })}
-              >
-                {templates.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </Field>
             <div className="grid grid-cols-2 gap-3">
               {spec.type === "points" && (
                 <Field label="Points per currency unit">
@@ -183,6 +191,32 @@ export default function EditStudioVariant() {
                 </select>
               </Field>
             </div>
+          </Section>
+
+          <Section title="Layout — choose what goes where">
+            <Field label="Start from a preset">
+              <select
+                className={SELECT}
+                value=""
+                onChange={(e) => e.target.value && loadPreset(e.target.value)}
+              >
+                <option value="">Load preset…</option>
+                {Object.keys(palette?.presets ?? {}).map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {palette && spec.layout ? (
+              <LayoutEditor
+                layout={spec.layout}
+                palette={palette}
+                onChange={(layout) => update({ layout })}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">Loading palette…</p>
+            )}
           </Section>
 
           <Section title="Reward ladder">
@@ -425,6 +459,118 @@ function RewardEditor({
       >
         Add reward
       </Button>
+    </div>
+  );
+}
+
+function LayoutEditor({
+  layout,
+  palette,
+  onChange,
+}: {
+  layout: LayoutConfig;
+  palette: StudioPalette;
+  onChange: (l: LayoutConfig) => void;
+}) {
+  const stripPresent = layout.strip !== "none";
+  const label = (key: string) =>
+    palette.elements.find((e) => e.key === key)?.label ?? key;
+  const keysOf = (slot: string) =>
+    ((layout as unknown as Record<string, string[]>)[slot] ?? []) as string[];
+  const setSlot = (slot: string, keys: string[]) =>
+    onChange({ ...layout, [slot]: keys } as LayoutConfig);
+  const add = (slot: string, key: string) => {
+    if (key) setSlot(slot, [...keysOf(slot), key]);
+  };
+  const remove = (slot: string, idx: number) =>
+    setSlot(
+      slot,
+      keysOf(slot).filter((_, i) => i !== idx)
+    );
+  const move = (slot: string, idx: number, dir: -1 | 1) => {
+    const arr = [...keysOf(slot)];
+    const j = idx + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[idx], arr[j]] = [arr[j], arr[idx]];
+    setSlot(slot, arr);
+  };
+  const avail = (slot: string) =>
+    palette.elements.filter(
+      (e) => e.slots.includes(slot) && !keysOf(slot).includes(e.key)
+    );
+
+  return (
+    <div className="space-y-4">
+      <Field label="Strip style">
+        <select
+          className={SELECT}
+          value={layout.strip}
+          onChange={(e) => onChange({ ...layout, strip: e.target.value })}
+        >
+          {palette.strips.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {palette.slots.map((slot) => {
+        const disabled = slot === "primary" && stripPresent;
+        return (
+          <div key={slot} className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              {SLOT_LABELS[slot] ?? slot}
+            </Label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {keysOf(slot).map((key, idx) => (
+                <span
+                  key={`${key}-${idx}`}
+                  className="inline-flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs"
+                >
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => move(slot, idx, -1)}
+                    aria-label="Move earlier"
+                  >
+                    ↑
+                  </button>
+                  <span>{label(key)}</span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => remove(slot, idx)}
+                    aria-label="Remove"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+              {disabled ? (
+                <span className="text-xs text-muted-foreground">
+                  hidden — the strip occupies this area
+                </span>
+              ) : (
+                avail(slot).length > 0 && (
+                  <select
+                    className="h-7 rounded-md border border-input bg-background px-2 text-xs"
+                    value=""
+                    onChange={(e) => add(slot, e.target.value)}
+                  >
+                    <option value="">+ add…</option>
+                    {avail(slot).map((e) => (
+                      <option key={e.key} value={e.key}>
+                        {e.label}
+                      </option>
+                    ))}
+                  </select>
+                )
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

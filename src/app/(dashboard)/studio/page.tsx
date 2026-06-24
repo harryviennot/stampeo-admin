@@ -58,6 +58,9 @@ export default function StudioPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/studio/strip-editor">Strip editor</Link>
+          </Button>
           <Button
             variant="outline"
             onClick={handleSeed}
