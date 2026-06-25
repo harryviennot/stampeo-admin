@@ -24,10 +24,6 @@ const BUCKET_META: Record<
     label: "Cancelling",
     className: "border-orange-200 bg-orange-50 text-orange-700",
   },
-  trial_ending_no_card: {
-    label: "Trial ending · no card",
-    className: "border-blue-200 bg-blue-50 text-blue-700",
-  },
 };
 
 export function AtRiskTable() {
@@ -43,9 +39,11 @@ export function AtRiskTable() {
         <>
           <p className="font-medium text-foreground">What could slip</p>
           <p className="mt-1 text-muted-foreground">
-            Past-due subscriptions, businesses in their grace window,
-            scheduled cancellations, and trials ending within 7 days with no
-            card on file. Amounts are the net MRR each would forfeit.
+            Card-on-file businesses whose revenue is in jeopardy: past-due
+            subscriptions, businesses in their grace window, and scheduled
+            cancellations. Amounts are the net MRR each would forfeit. (Trials
+            with no card are excluded — they never represented committed
+            revenue.)
           </p>
         </>
       }
