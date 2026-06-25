@@ -230,10 +230,14 @@ export default function BillingPage() {
           loading={isPending}
           icon={<Hourglass className="h-4 w-4" />}
           badgeClass="bg-violet-100 text-violet-700"
-          info="Net MRR currently sitting in trials, if they all convert."
-          footer={`${data?.trial_pipeline_count ?? 0} trial${
-            (data?.trial_pipeline_count ?? 0) === 1 ? "" : "s"
-          }`}
+          info="Net MRR sitting in trials that have a card on file, if they all convert. No-card trials are excluded (no intent to pay)."
+          footer={
+            <>
+              {`${data?.trial_pipeline_count ?? 0} with card`}
+              {(data?.no_card_trial_count ?? 0) > 0 &&
+                ` · ${data?.no_card_trial_count} no card (excluded)`}
+            </>
+          }
         />
       </div>
 
@@ -263,11 +267,12 @@ export default function BillingPage() {
               </h3>
             </div>
             <p className="mt-2 text-sm text-violet-800">
-              Founding partners get 50% off Starter &amp; Growth (Pro is always
-              full price). New founding pricing closes{" "}
-              <span className="font-semibold">21 Jul 2026</span> — after that,
-              fresh signups pay public rates and net MRR from new business should
-              rise.
+              Founding partners pay 50% off Starter &amp; Growth —{" "}
+              <span className="font-semibold">€10</span> /{" "}
+              <span className="font-semibold">€20</span>, with Pro at full{" "}
+              <span className="font-semibold">€60</span>. Founding pricing closes
+              at the end of summer (date TBD) — after that, fresh signups pay
+              public rates and net MRR from new business should rise.
             </p>
             <p className="mt-2 text-xs text-violet-700">
               Existing founding partners keep their rate; their discount is baked
