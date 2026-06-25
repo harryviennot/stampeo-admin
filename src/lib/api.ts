@@ -637,6 +637,9 @@ export interface RevenueTrialBreakdownRow {
   count: number;
   unit_amount: number;
   subtotal: number;
+  /** Discount-aware additions (subtotal is now an alias of net_subtotal). */
+  gross_subtotal?: number;
+  net_subtotal?: number;
 }
 
 export interface MissingPriceBusiness {
@@ -657,6 +660,12 @@ export interface RevenueSnapshot {
   missing_price_businesses: MissingPriceBusiness[];
   price_lookup_error: boolean;
   active_mrr: number;
+  /** Discount-aware fields: active_mrr now equals net_mrr (money perceived). */
+  gross_mrr?: number;
+  net_mrr?: number;
+  total_discount_amount?: number;
+  discounted_count?: number;
+  fully_comped_count?: number;
   active_breakdown: RevenueTrialBreakdownRow[];
   converting_trial_count: number;
   converting_trial_mrr: number;
@@ -669,6 +678,163 @@ export interface RevenueSnapshot {
 export async function fetchRevenueSnapshot(): Promise<RevenueSnapshot> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/stats/revenue`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ─── Billing analytics dashboard ───────────────────────────────────
+// All amounts are in minor units (cents). "net" = money actually perceived
+// (Stripe coupons / comps netted out); "gross" = list price before discounts.
+
+export interface BillingTierBreakdownRow {
+  tier: string;
+  is_founding: boolean;
+  count: number;
+  gross_subtotal: number;
+  net_subtotal: number;
+}
+
+export interface BillingOverview {
+  currency: string;
+  net_mrr: number;
+  gross_mrr: number;
+  net_arr: number;
+  arpa: number;
+  active_count: number;
+  this_month_collected: number;
+  last_month_collected: number;
+  mom_growth_pct: number | null;
+  trial_pipeline_mrr: number;
+  trial_pipeline_count: number;
+  discount_leakage: {
+    monthly_waived: number;
+    discounted_count: number;
+    fully_comped_count: number;
+  };
+  tier_breakdown: BillingTierBreakdownRow[];
+  stripe_error: string | null;
+}
+
+export interface RevenueTrendBucket {
+  month: string; // "YYYY-MM"
+  collected: number;
+  invoice_count: number;
+  net_mrr: number | null;
+}
+
+export interface RevenueTrend {
+  currency: string;
+  buckets: RevenueTrendBucket[];
+  stripe_error: string | null;
+}
+
+export interface UpcomingPaymentRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  is_founding: boolean;
+  next_charge_at: string | null;
+  net_amount: number;
+  gross_amount: number;
+  is_discounted: boolean;
+  is_trial_conversion: boolean;
+  at_risk: boolean;
+}
+
+export interface UpcomingPayments {
+  currency: string;
+  rows: UpcomingPaymentRow[];
+}
+
+export interface AtRiskRow {
+  business_id: string;
+  name: string;
+  tier: string;
+  net_amount: number;
+  detail: string | null;
+}
+
+export interface AtRiskBucket {
+  bucket:
+    | "past_due"
+    | "grace"
+    | "cancel_at_period_end"
+    | "trial_ending_no_card";
+  count: number;
+  amount_at_risk: number;
+  rows: AtRiskRow[];
+}
+
+export interface AtRiskPayments {
+  currency: string;
+  total_at_risk: number;
+  buckets: AtRiskBucket[];
+}
+
+export interface BillingProjectionScenario {
+  mrr: number[]; // 13 points, month 0..12
+  arr_eoy: number;
+}
+
+export interface BillingProjections {
+  currency: string;
+  assumptions: {
+    starting_mrr: number;
+    churn_rate: number;
+    trial_conversion: number;
+    trial_pipeline_mrr: number;
+    net_new_mrr: number;
+  };
+  scenarios: {
+    pessimistic: BillingProjectionScenario;
+    realistic: BillingProjectionScenario;
+    optimistic: BillingProjectionScenario;
+  };
+}
+
+export async function fetchBillingOverview(): Promise<BillingOverview> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/billing/overview`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchRevenueTrend(
+  months: number = 12
+): Promise<RevenueTrend> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/billing/revenue-trend?months=${months}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchUpcomingPayments(
+  limit: number = 10
+): Promise<UpcomingPayments> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/billing/upcoming-payments?limit=${limit}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchAtRiskPayments(): Promise<AtRiskPayments> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/billing/at-risk`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchBillingProjections(): Promise<BillingProjections> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/billing/projections`, {
+    headers,
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

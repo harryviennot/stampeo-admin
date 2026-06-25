@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/", label: "Dashboard" },
+  { href: "/billing", label: "Billing" },
   { href: "/businesses", label: "Businesses" },
   { href: "/access-sessions", label: "Access Sessions" },
   { href: "/users", label: "Users" },

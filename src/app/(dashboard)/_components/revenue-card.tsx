@@ -101,6 +101,14 @@ export function RevenueCard() {
                   </span>
                 )}
               </p>
+              {(data.total_discount_amount ?? 0) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  net of {formatAmount(data.total_discount_amount ?? 0, currency)}/mo
+                  discounts
+                  {(data.fully_comped_count ?? 0) > 0 &&
+                    ` · ${data.fully_comped_count} fully comped`}
+                </p>
+              )}
             </div>
             <div className="rounded-lg border bg-muted/20 p-4">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

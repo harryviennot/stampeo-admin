@@ -8,6 +8,11 @@ import {
   fetchCustomerSignupsByBusiness,
   fetchCustomerSignupsTopPerBucket,
   fetchGlobalStats,
+  fetchBillingOverview,
+  fetchRevenueTrend,
+  fetchUpcomingPayments,
+  fetchAtRiskPayments,
+  fetchBillingProjections,
   fetchHeardFromStats,
   fetchInactiveSnapshot,
   fetchOnboardingBreakdowns,
@@ -53,6 +58,41 @@ export function useRevenueSnapshot() {
   return useQuery({
     queryKey: adminKeys.stats.revenue,
     queryFn: fetchRevenueSnapshot,
+  });
+}
+
+export function useBillingOverview() {
+  return useQuery({
+    queryKey: adminKeys.stats.billingOverview,
+    queryFn: fetchBillingOverview,
+  });
+}
+
+export function useRevenueTrend(months: number = 12) {
+  return useQuery({
+    queryKey: adminKeys.stats.revenueTrend(months),
+    queryFn: () => fetchRevenueTrend(months),
+  });
+}
+
+export function useUpcomingPayments(limit: number = 10) {
+  return useQuery({
+    queryKey: adminKeys.stats.upcomingPayments(limit),
+    queryFn: () => fetchUpcomingPayments(limit),
+  });
+}
+
+export function useAtRiskPayments() {
+  return useQuery({
+    queryKey: adminKeys.stats.atRiskPayments,
+    queryFn: fetchAtRiskPayments,
+  });
+}
+
+export function useBillingProjections() {
+  return useQuery({
+    queryKey: adminKeys.stats.billingProjections,
+    queryFn: fetchBillingProjections,
   });
 }
 
