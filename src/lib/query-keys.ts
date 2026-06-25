@@ -13,6 +13,13 @@ export const adminKeys = {
     overview: ["stats", "overview"] as const,
     billing: ["stats", "billing"] as const,
     revenue: ["stats", "revenue"] as const,
+    billingOverview: ["stats", "billing-overview"] as const,
+    revenueTrend: (months: number) =>
+      ["stats", "revenue-trend", months] as const,
+    upcomingPayments: (limit: number) =>
+      ["stats", "upcoming-payments", limit] as const,
+    atRiskPayments: ["stats", "at-risk-payments"] as const,
+    billingProjections: ["stats", "billing-projections"] as const,
     timeseries: (p: TimeseriesParams) => ["stats", "timeseries", p] as const,
     topBusinesses: (limit: number) =>
       ["stats", "top-businesses", limit] as const,
