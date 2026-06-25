@@ -57,19 +57,19 @@ export function ProjectionChart() {
           </p>
           <p className="mt-1 text-muted-foreground">
             Starts from current net MRR and evolves each month as{" "}
-            <span className="font-medium">
-              prior × (1 − churn) + new MRR + converting trials
-            </span>
-            . Inputs are measured from the last 90 days; scenarios scale churn,
-            growth and trial conversion up or down.
+            <span className="font-medium">prior × (1 − churn) + new MRR</span>.
+            New MRR is the average net revenue from newly-activated paying
+            businesses per month (card payers only). Scenarios scale churn and
+            acquisition up or down; the curve trends toward a stable equilibrium
+            rather than collapsing.
           </p>
         </>
       }
       legend={
         a ? (
           <span className="text-xs text-muted-foreground tabular-nums">
-            churn {(a.churn_rate * 100).toFixed(1)}% · conv{" "}
-            {(a.trial_conversion * 100).toFixed(0)}%
+            churn {(a.churn_rate * 100).toFixed(1)}%/mo · +
+            {formatAmount(a.new_mrr_per_month, currency)}/mo new
           </span>
         ) : undefined
       }

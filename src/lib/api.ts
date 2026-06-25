@@ -706,6 +706,7 @@ export interface BillingOverview {
   mom_growth_pct: number | null;
   trial_pipeline_mrr: number;
   trial_pipeline_count: number;
+  no_card_trial_count?: number;
   discount_leakage: {
     monthly_waived: number;
     discounted_count: number;
@@ -755,11 +756,7 @@ export interface AtRiskRow {
 }
 
 export interface AtRiskBucket {
-  bucket:
-    | "past_due"
-    | "grace"
-    | "cancel_at_period_end"
-    | "trial_ending_no_card";
+  bucket: "past_due" | "grace" | "cancel_at_period_end";
   count: number;
   amount_at_risk: number;
   rows: AtRiskRow[];
@@ -781,9 +778,9 @@ export interface BillingProjections {
   assumptions: {
     starting_mrr: number;
     churn_rate: number;
-    trial_conversion: number;
+    new_mrr_per_month: number;
     trial_pipeline_mrr: number;
-    net_new_mrr: number;
+    active_count: number;
   };
   scenarios: {
     pessimistic: BillingProjectionScenario;
