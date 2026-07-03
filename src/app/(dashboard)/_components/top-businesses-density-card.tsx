@@ -12,12 +12,12 @@ export function TopBusinessesDensityCard() {
   return (
     <ChartCard
       title="Density leaderboard · 7d"
-      subtitle="Stamps per customer · rolling 7 days"
+      subtitle="Scans per customer · rolling 7 days"
       info={
         <>
           <p className="font-medium text-foreground">Which businesses have the most engaged customers?</p>
           <p className="mt-1 text-muted-foreground">
-            <span className="font-medium">Density</span> = stamps in the last 7
+            <span className="font-medium">Density</span> = scans in the last 7
             days ÷ total lifetime customers. Complements the absolute-count
             leaderboard by surfacing small, high-engagement accounts that would
             otherwise be buried. Businesses with zero customers are excluded to
@@ -61,7 +61,7 @@ export function TopBusinessesDensityCard() {
                     {row.customers_total.toLocaleString()} cust.
                   </span>
                   <span className="font-medium tabular-nums text-sm">
-                    {row.stamps_per_customer.toFixed(2)}
+                    {row.scans_per_customer.toFixed(2)}
                     <span className="text-xs text-muted-foreground ml-1">
                       / cust
                     </span>

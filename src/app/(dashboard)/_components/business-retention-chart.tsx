@@ -49,7 +49,7 @@ export function BusinessRetentionChart() {
           <p className="mt-1 text-muted-foreground">
             Each row is a weekly cohort of new businesses. A business is{" "}
             <span className="font-medium">retained at day N</span> if it recorded
-            a stamp in the 7-day window ending at day N. The{" "}
+            a scan in the 7-day window ending at day N. The{" "}
             <span className="font-medium">day-60 column is the ad-readiness gate</span>{" "}
             — when a matured cohort holds ≥25% at day 60, paid acquisition is
             worth turning on. Cells are blank (&quot;—&quot;) until a cohort is

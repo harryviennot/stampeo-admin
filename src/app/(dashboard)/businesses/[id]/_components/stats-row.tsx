@@ -39,22 +39,22 @@ export function StatsRow({ businessId }: { businessId: string }) {
         info="Every customer ever enrolled with this business. The 30d line shows enrollments in the last 30 days; the trend compares that against the prior 30 days."
       />
       <StatCard
-        label="Total Stamps"
-        value={stats?.total_stamps}
+        label="Total Scans"
+        value={stats?.total_scans}
         loading={isPending}
         icon={<CircleDot className="h-4 w-4" />}
         subValue={
-          stats ? { current: stats.stamps_current_30d, label: "in last 30d" } : undefined
+          stats ? { current: stats.scans_current_30d, label: "in last 30d" } : undefined
         }
         trend={
           stats
             ? {
-                current: stats.stamps_current_30d,
-                previous: stats.stamps_prior_30d,
+                current: stats.scans_current_30d,
+                previous: stats.scans_prior_30d,
               }
             : undefined
         }
-        info="Every stamp_added transaction for this business. The 30d line and trend (last 30 days vs prior 30) are the primary gauge of real usage."
+        info="Every scan (stamp_added or points_earned transaction) for this business. The 30d line and trend (last 30 days vs prior 30) are the primary gauge of real usage."
       />
       <StatCard
         label="Total Rewards"
@@ -80,9 +80,9 @@ export function StatsRow({ businessId }: { businessId: string }) {
             </p>
             <p className="mt-1 text-muted-foreground">
               Customers of this business with zero{" "}
-              <span className="font-medium">stamp_added</span> transactions ever.
+              <span className="font-medium">scans</span> ever.
               Signals onboarding friction (e.g. customers who installed the pass
-              but never returned to earn their first stamp).{" "}
+              but never returned to earn anything).{" "}
               <span className="font-medium">Lower is better.</span>
             </p>
           </>

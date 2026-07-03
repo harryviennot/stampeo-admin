@@ -15,7 +15,7 @@ import {
   fetchPassLifecycle,
   fetchRevenueSnapshot,
   fetchSetupWizardFunnel,
-  fetchStampHeatmap,
+  fetchScanHeatmap,
   fetchTimeseries,
   fetchTopBusinesses,
   fetchTopBusinessesAllTime,
@@ -162,10 +162,10 @@ export function useBroadcastDeliverability(params: BucketRangeParams = {}) {
   });
 }
 
-export function useStampHeatmap(params: RangeParams = {}) {
+export function useScanHeatmap(params: RangeParams = {}) {
   return useQuery({
-    queryKey: adminKeys.stats.stampHeatmap(params),
-    queryFn: () => fetchStampHeatmap(params),
+    queryKey: adminKeys.stats.scanHeatmap(params),
+    queryFn: () => fetchScanHeatmap(params),
   });
 }
 

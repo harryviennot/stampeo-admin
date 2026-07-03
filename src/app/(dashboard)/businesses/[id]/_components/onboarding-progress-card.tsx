@@ -20,7 +20,7 @@ const CHAPTERS: Array<{ key: string; label: string; steps: string[] }> = [
   { key: "card-back",       label: "Card back",       steps: ["intro", "info"] },
   { key: "design",          label: "Design",          steps: ["branding", "stamps", "content", "back"] },
   { key: "notifications",   label: "Notifications",   steps: ["icon"] },
-  { key: "first-stamp",     label: "First stamp",     steps: ["install", "stamp"] },
+  { key: "first-stamp",     label: "First scan",      steps: ["install", "stamp"] },
   { key: "first-broadcast", label: "First broadcast", steps: ["intro", "compose"] },
   { key: "team",            label: "Team",            steps: ["team"] },
   { key: "recap",           label: "Recap",           steps: ["recap"] },

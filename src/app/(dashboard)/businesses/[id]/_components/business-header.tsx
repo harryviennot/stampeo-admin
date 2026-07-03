@@ -122,7 +122,7 @@ export function BusinessHeader({ business }: { business: Business }) {
                   <AlertDialogTitle>Suspend business?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This will suspend &quot;{business.name}&quot;. They will no
-                    longer be able to stamp customers or manage their account.
+                    longer be able to scan customers or manage their account.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

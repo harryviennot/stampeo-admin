@@ -150,7 +150,7 @@ const SORT_OPTIONS: SortOption[] = [
   { key: "name_asc",       label: "Name A → Z",              by: "name",             dir: "asc"  },
   { key: "name_desc",      label: "Name Z → A",              by: "name",             dir: "desc" },
   { key: "customers_desc", label: "Most customers",          by: "customers_total",  dir: "desc" },
-  { key: "stamps_desc",    label: "Most stamps (all-time)",  by: "stamps_total",     dir: "desc" },
+  { key: "scans_desc",     label: "Most scans (all-time)",   by: "scans_total",     dir: "desc" },
   { key: "active_desc",    label: "Most recently active",    by: "last_activity_at", dir: "desc" },
   { key: "active_asc",     label: "Inactive longest",        by: "last_activity_at", dir: "asc"  },
   { key: "trial_asc",      label: "Trial ending soonest",    by: "trial_ends_at",    dir: "asc"  },
@@ -513,7 +513,7 @@ function BusinessesContent() {
                   <TableHead>Billing</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead className="text-right">Customers</TableHead>
-                  <TableHead className="text-right">Stamps</TableHead>
+                  <TableHead className="text-right">Scans</TableHead>
                   <TableHead>Last activity</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="w-[140px]">Actions</TableHead>
@@ -594,10 +594,10 @@ function BusinessesContent() {
                         {biz.customers_total ?? 0}
                       </TableCell>
                       <TableCell className="text-right text-sm tabular-nums">
-                        {biz.stamps_total ?? 0}
-                        {biz.stamps_7d ? (
+                        {biz.scans_total ?? 0}
+                        {biz.scans_7d ? (
                           <span className="ml-1 text-xs text-emerald-600">
-                            +{biz.stamps_7d}
+                            +{biz.scans_7d}
                           </span>
                         ) : null}
                       </TableCell>
@@ -639,7 +639,7 @@ function BusinessesContent() {
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
                                   This will suspend &quot;{biz.name}&quot;. They
-                                  will no longer be able to stamp customers or
+                                  will no longer be able to scan customers or
                                   manage their account.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>

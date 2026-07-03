@@ -118,9 +118,9 @@ export interface Business {
   // Post-signup setup-wizard progress (settings.setup_progress)
   setup_progress?: SetupProgress | null;
   // Per-row aggregates returned by the enriched-businesses RPC
-  stamps_total?: number;
-  stamps_30d?: number;
-  stamps_7d?: number;
+  scans_total?: number;
+  scans_30d?: number;
+  scans_7d?: number;
   customers_total?: number;
   last_activity_at?: string | null;
 }
@@ -129,7 +129,7 @@ export type BusinessSortBy =
   | "created_at"
   | "activated_at"
   | "name"
-  | "stamps_total"
+  | "scans_total"
   | "customers_total"
   | "last_activity_at"
   | "trial_ends_at";
@@ -204,7 +204,7 @@ export interface TimeseriesBucket {
   period_start: string;
   new_businesses: number;
   new_customers: number;
-  stamps_added: number;
+  scans_added: number;
   redemptions: number;
 }
 
@@ -232,8 +232,8 @@ export interface TopBusinessRow {
   name: string;
   tier: string;
   billing_status: string;
-  stamps_current: number;
-  stamps_prior: number;
+  scans_current: number;
+  scans_prior: number;
   delta_pct: number | null;
   last_activity_at: string | null;
 }
@@ -247,7 +247,7 @@ export interface TopBusinessAllTimeRow {
   name: string;
   tier: string;
   billing_status: string;
-  stamps_total: number;
+  scans_total: number;
   customers_total: number;
   last_activity_at: string | null;
 }
@@ -347,9 +347,9 @@ export interface GlobalStats {
   total_customers: number;
   customers_current_30d: number;
   customers_prior_30d: number;
-  total_stamps: number;
-  stamps_current_30d: number;
-  stamps_prior_30d: number;
+  total_scans: number;
+  scans_current_30d: number;
+  scans_prior_30d: number;
   total_rewards_redeemed: number;
   rewards_current_30d: number;
   rewards_prior_30d: number;
@@ -395,9 +395,9 @@ export interface BusinessStats {
   total_customers: number;
   customers_current_30d: number;
   customers_prior_30d: number;
-  total_stamps: number;
-  stamps_current_30d: number;
-  stamps_prior_30d: number;
+  total_scans: number;
+  scans_current_30d: number;
+  scans_prior_30d: number;
   total_rewards: number;
   active_design: CardDesign | null;
   certificate: {
@@ -784,7 +784,7 @@ export interface ActivationFunnelResponse {
   created: number;
   has_active_design: number;
   has_first_customer: number;
-  has_first_stamp: number;
+  has_first_scan: number;
 }
 
 export async function fetchActivationFunnel(
@@ -928,23 +928,23 @@ export async function fetchBroadcastDeliverability(
   return res.json();
 }
 
-export interface StampHeatmapCell {
+export interface ScanHeatmapCell {
   dow: number;
   hour: number;
-  stamps: number;
+  scans: number;
 }
 
-export interface StampHeatmapResponse {
-  cells: StampHeatmapCell[];
+export interface ScanHeatmapResponse {
+  cells: ScanHeatmapCell[];
 }
 
-export async function fetchStampHeatmap(
+export async function fetchScanHeatmap(
   params: RangeParams = {}
-): Promise<StampHeatmapResponse> {
+): Promise<ScanHeatmapResponse> {
   const headers = await getAuthHeaders();
   const qs = buildQuery(params);
   const res = await fetch(
-    `${API_BASE_URL}/admin/stats/stamp-heatmap${qs}`,
+    `${API_BASE_URL}/admin/stats/scan-heatmap${qs}`,
     { headers }
   );
   if (!res.ok) throw new Error(await res.text());
@@ -955,9 +955,9 @@ export interface DensityRow {
   business_id: string;
   name: string;
   tier: string;
-  stamps_7d: number;
+  scans_7d: number;
   customers_total: number;
-  stamps_per_customer: number;
+  scans_per_customer: number;
   last_activity_at: string | null;
 }
 
@@ -987,7 +987,7 @@ export interface PlatformHealth {
   qualified_active_biz: number;
   median_cust_active: number | null;
   repeat_cust_rate: number | null;
-  median_days_first_stamp: number | null;
+  median_days_first_scan: number | null;
 }
 
 export async function fetchPlatformHealth(): Promise<PlatformHealth> {
@@ -1149,7 +1149,7 @@ export interface HealthLeaderboardRow {
   tier: string;
   billing_status: string;
   customers_total: number;
-  stamps_7d: number;
+  scans_7d: number;
   rewards_7d: number;
   repeat_rate: number | null;
   n_vol: number;
