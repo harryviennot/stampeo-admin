@@ -6,6 +6,7 @@ import {
   CreditCard,
   Gift,
   Hourglass,
+  Percent,
   TrendingUp,
   Users,
   Wallet,
@@ -97,12 +98,13 @@ function LeakageCard({
             content={
               <>
                 <p className="font-medium text-foreground">
-                  Gross list price vs money perceived
+                  Combined subscriptions vs money collected
                 </p>
                 <p className="mt-1 text-muted-foreground">
-                  Permanent (forever) coupons and 100%-off comps are excluded
-                  from MRR. This shows how much list-price revenue is given away
-                  each month and how many accounts are fully comped.
+                  Gross is the combined price of all active subscriptions; Net is
+                  what&apos;s actually collected after coupons and comps (e.g. a
+                  100%-off account collects €0). The gap is the discount given
+                  away each month.
                 </p>
               </>
             }
@@ -147,7 +149,7 @@ function LeakageCard({
               {waivedPct > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
                   <Gift className="h-3 w-3" />
-                  {waivedPct}% of list MRR given away
+                  {waivedPct}% of gross MRR given away
                 </span>
               )}
             </div>
@@ -181,15 +183,22 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* KPI row — responsive 2 → 3 → 6 across */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+      {/* KPI row — responsive 2 → 3 → 4 across */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <KpiCard
           label="Net MRR"
           value={formatAmount(data?.net_mrr, currency)}
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue net of permanent discounts. A 100%-off comp counts as 0."
+          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends."
+          footer={
+            (data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) ? (
+              <span className="text-muted-foreground">
+                {formatAmount(data?.gross_mrr, currency)} gross
+              </span>
+            ) : undefined
+          }
         />
         <KpiCard
           label="ARR"
@@ -237,6 +246,23 @@ export default function BillingPage() {
               {(data?.no_card_trial_count ?? 0) > 0 &&
                 ` · ${data?.no_card_trial_count} no card (excluded)`}
             </>
+          }
+        />
+        <KpiCard
+          label="Trial conversion"
+          value={
+            data?.trial_conversion_rate == null
+              ? "—"
+              : `${Math.round(data.trial_conversion_rate * 100)}%`
+          }
+          loading={isPending}
+          icon={<Percent className="h-4 w-4" />}
+          badgeClass="bg-amber-100 text-amber-700"
+          info="Share of card trials whose trial ended in the last 90 days that reached a real first payment. No-card trials are excluded."
+          footer={
+            (data?.trial_conversion_sample ?? 0) > 0
+              ? `${data?.trial_conversion_converted ?? 0} of ${data?.trial_conversion_sample} trials · 90d`
+              : "no ended trials yet"
           }
         />
       </div>

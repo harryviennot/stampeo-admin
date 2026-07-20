@@ -49,7 +49,7 @@ export function ProjectionChart() {
   return (
     <ChartCard
       title="MRR projection · next 12 months"
-      subtitle="Pessimistic · realistic · optimistic — net of permanent discounts"
+      subtitle="Pessimistic · realistic · optimistic — from collected net MRR"
       info={
         <>
           <p className="font-medium text-foreground">

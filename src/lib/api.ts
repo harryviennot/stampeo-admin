@@ -707,6 +707,9 @@ export interface BillingOverview {
   trial_pipeline_mrr: number;
   trial_pipeline_count: number;
   no_card_trial_count?: number;
+  trial_conversion_rate?: number | null;
+  trial_conversion_converted?: number;
+  trial_conversion_sample?: number;
   discount_leakage: {
     monthly_waived: number;
     discounted_count: number;
