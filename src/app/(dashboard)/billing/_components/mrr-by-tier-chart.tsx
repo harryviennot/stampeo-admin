@@ -35,16 +35,17 @@ export function MrrByTierChart({
   return (
     <ChartCard
       title="MRR by tier"
-      subtitle="Gross list price vs net perceived"
+      subtitle="Combined subscriptions vs collected"
       info={
         <>
           <p className="font-medium text-foreground">
             Where recurring revenue comes from
           </p>
           <p className="mt-1 text-muted-foreground">
-            Each tier&apos;s gross (list) MRR next to net MRR after permanent
-            discounts. A gap between the two is comped or reseller-discounted
-            revenue. &quot;·F&quot; marks founding-partner pricing.
+            Each tier&apos;s combined subscription MRR next to what&apos;s
+            actually collected. A gap between the two is comped or
+            coupon-discounted revenue. &quot;·F&quot; marks founding-partner
+            pricing.
           </p>
         </>
       }
