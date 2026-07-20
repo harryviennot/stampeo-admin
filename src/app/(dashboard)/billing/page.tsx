@@ -98,13 +98,13 @@ function LeakageCard({
             content={
               <>
                 <p className="font-medium text-foreground">
-                  Rack rate vs money perceived
+                  Combined subscriptions vs money collected
                 </p>
                 <p className="mt-1 text-muted-foreground">
-                  Gross is the full public price; Net is what&apos;s actually
-                  charged after founding pricing, reseller discounts, and comps.
-                  This shows how much list-price revenue is given away each month
-                  and how many accounts are fully comped.
+                  Gross is the combined price of all active subscriptions; Net is
+                  what&apos;s actually collected after coupons and comps (e.g. a
+                  100%-off account collects €0). The gap is the discount given
+                  away each month.
                 </p>
               </>
             }
@@ -149,7 +149,7 @@ function LeakageCard({
               {waivedPct > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
                   <Gift className="h-3 w-3" />
-                  {waivedPct}% of list MRR given away
+                  {waivedPct}% of gross MRR given away
                 </span>
               )}
             </div>
@@ -191,11 +191,11 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually charged (after founding / reseller discounts). A 100%-off comp counts as 0."
+          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends."
           footer={
             (data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) ? (
               <span className="text-muted-foreground">
-                {formatAmount(data?.gross_mrr, currency)} at rack rate
+                {formatAmount(data?.gross_mrr, currency)} gross
               </span>
             ) : undefined
           }
