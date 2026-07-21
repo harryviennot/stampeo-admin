@@ -839,6 +839,40 @@ export async function fetchBillingProjections(): Promise<BillingProjections> {
   return res.json();
 }
 
+export type CohortGranularity = "week" | "month";
+export type CohortUniverse = "card" | "all";
+
+export interface ConversionCohort {
+  period: string; // ISO date (week Monday, or first-of-month)
+  size: number;
+  paid: number;
+  still_trialing: number;
+  churned: number;
+  net_mrr: number;
+  conversion_rate: number | null;
+}
+
+export interface ConversionCohorts {
+  granularity: CohortGranularity;
+  universe: CohortUniverse;
+  currency: string;
+  cohorts: ConversionCohort[];
+}
+
+export async function fetchConversionCohorts(
+  granularity: CohortGranularity = "month",
+  universe: CohortUniverse = "card",
+  periods: number = 12
+): Promise<ConversionCohorts> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/billing/conversion-cohorts?granularity=${granularity}&universe=${universe}&periods=${periods}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function fetchTopBusinesses(
   limit: number = 10
 ): Promise<TopBusinessesResponse> {

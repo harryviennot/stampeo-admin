@@ -13,6 +13,9 @@ import {
   fetchUpcomingPayments,
   fetchAtRiskPayments,
   fetchBillingProjections,
+  fetchConversionCohorts,
+  type CohortGranularity,
+  type CohortUniverse,
   fetchHeardFromStats,
   fetchInactiveSnapshot,
   fetchOnboardingBreakdowns,
@@ -93,6 +96,17 @@ export function useBillingProjections() {
   return useQuery({
     queryKey: adminKeys.stats.billingProjections,
     queryFn: fetchBillingProjections,
+  });
+}
+
+export function useConversionCohorts(
+  granularity: CohortGranularity,
+  universe: CohortUniverse
+) {
+  return useQuery({
+    queryKey: adminKeys.stats.conversionCohorts(granularity, universe),
+    queryFn: () => fetchConversionCohorts(granularity, universe),
+    placeholderData: (prev) => prev,
   });
 }
 

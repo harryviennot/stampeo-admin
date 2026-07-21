@@ -23,6 +23,7 @@ import { RevenueTrendChart } from "./_components/revenue-trend-chart";
 import { MrrByTierChart } from "./_components/mrr-by-tier-chart";
 import { UpcomingPaymentsTable } from "./_components/upcoming-payments-table";
 import { AtRiskTable } from "./_components/at-risk-table";
+import { ConversionCohortTable } from "./_components/conversion-cohort-table";
 import { formatAmount } from "./_components/format";
 
 function KpiCard({
@@ -307,6 +308,46 @@ export default function BillingPage() {
             </p>
           </CardContent>
         </Card>
+      </LazyMount>
+
+      {/* Conversion cohorts — card-linked vs all signups */}
+      <LazyMount minHeight={300} className="grid gap-6 lg:grid-cols-2">
+        <ConversionCohortTable
+          universe="card"
+          title="Card-linked → paid cohorts"
+          subtitle="Businesses that actually linked a card, by signup period"
+          info={
+            <>
+              <p className="font-medium text-foreground">
+                Do businesses that link a card actually pay?
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Denominator is only businesses that genuinely linked a card
+                (a Stripe subscription exists — not merely the card-required
+                workflow). &quot;Paid&quot; is a real first settled invoice
+                (first_paid_at), not a status flip. Greener = higher conversion.
+              </p>
+            </>
+          }
+        />
+        <ConversionCohortTable
+          universe="all"
+          title="Signup → paid cohorts"
+          subtitle="Every signup, card or not, by signup period"
+          info={
+            <>
+              <p className="font-medium text-foreground">
+                Top-of-funnel: all signups to paid
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Denominator is every business that signed up — including those
+                that never linked a card. This runs lower than the card-linked
+                cohort because it includes drop-offs before any card. &quot;Paid&quot;
+                is a real first settled invoice.
+              </p>
+            </>
+          }
+        />
       </LazyMount>
     </div>
   );
