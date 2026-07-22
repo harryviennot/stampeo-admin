@@ -16,6 +16,8 @@ import {
   fetchBusinesses,
   fetchBusinessStats,
   fetchBusinessSubscription,
+  grantNoCardTrial,
+  requireCard,
   suspendBusiness,
   type BucketRangeParams,
   type BusinessListParams,
@@ -107,6 +109,22 @@ export function useDeleteBusiness() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteBusiness(id),
+    onSuccess: () => invalidateBusinessLists(qc),
+  });
+}
+
+export function useGrantNoCardTrial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => grantNoCardTrial(id),
+    onSuccess: () => invalidateBusinessLists(qc),
+  });
+}
+
+export function useRequireCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => requireCard(id),
     onSuccess: () => invalidateBusinessLists(qc),
   });
 }

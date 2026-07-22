@@ -577,12 +577,12 @@ function BusinessesContent() {
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           <BillingStatusBadge status={biz.billing_status} />
-                          {biz.requires_card_upfront && (
+                          {biz.requires_card_upfront === false && (
                             <span
-                              className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700"
-                              title="Hard-paywall cohort (card required up front)"
+                              className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
+                              title="No-card exception (legacy or superadmin-granted no-card trial)"
                             >
-                              card
+                              no-card
                             </span>
                           )}
                         </div>
@@ -874,8 +874,8 @@ function FilterMenu({ filters, onChange, onClear }: FilterMenuProps) {
             value={filters.cardUpfront}
             options={[
               { value: "all", label: "All" },
-              { value: "yes", label: "Card upfront" },
-              { value: "no", label: "Legacy (no card)" },
+              { value: "yes", label: "Card required (default)" },
+              { value: "no", label: "No-card (legacy / granted)" },
             ]}
             onChange={(v) => onChange("cardUpfront", v as CardUpfrontFilter)}
           />
