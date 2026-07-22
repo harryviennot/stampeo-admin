@@ -24,13 +24,13 @@ export function TopBusinessesRollingCard() {
   return (
     <ChartCard
       title="Top businesses · last 7 days"
-      subtitle="Stamps added, rolling 7-day window"
+      subtitle="Scans, rolling 7-day window"
       info={
         <>
           <p className="font-medium text-foreground">Where activity is happening right now</p>
           <p className="mt-1 text-muted-foreground">
-            Ranks businesses by <span className="font-medium">stamp_added</span>{" "}
-            transactions in the last rolling 7 days (not calendar week). Δ compares
+            Ranks businesses by <span className="font-medium">scans</span>{" "}
+            (earn transactions) in the last rolling 7 days (not calendar week). Δ compares
             vs the prior 7-day window. &quot;Inactive 14d+&quot; flags businesses that
             were top-ranked but have gone silent for two weeks.
           </p>
@@ -72,7 +72,7 @@ export function TopBusinessesRollingCard() {
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-medium tabular-nums">
-                  {row.stamps_current.toLocaleString()}
+                  {row.scans_current.toLocaleString()}
                 </span>
                 <DeltaBadge deltaPct={row.delta_pct} />
               </div>
@@ -90,13 +90,13 @@ export function TopBusinessesAllTimeCard() {
   return (
     <ChartCard
       title="Top businesses · all time"
-      subtitle="Lifetime stamps added"
+      subtitle="Lifetime scans"
       info={
         <>
           <p className="font-medium text-foreground">Who are the platform&apos;s biggest contributors?</p>
           <p className="mt-1 text-muted-foreground">
-            Cumulative <span className="font-medium">stamp_added</span>{" "}
-            transactions since each business joined. Also shows total enrolled
+            Cumulative <span className="font-medium">scans</span>{" "}
+            since each business joined. Also shows total enrolled
             customers. Useful for identifying flagship accounts for case studies,
             pricing experiments, or support prioritization.
           </p>
@@ -113,7 +113,7 @@ export function TopBusinessesAllTimeCard() {
         <div className="h-[240px] animate-pulse rounded bg-muted/40" />
       ) : !data || data.items.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          No businesses with stamps yet
+          No businesses with scans yet
         </p>
       ) : (
         <div className="divide-y text-sm">
@@ -136,7 +136,7 @@ export function TopBusinessesAllTimeCard() {
                   {row.customers_total.toLocaleString()} cust.
                 </span>
                 <span className="font-medium tabular-nums text-sm">
-                  {row.stamps_total.toLocaleString()}
+                  {row.scans_total.toLocaleString()}
                 </span>
               </div>
             </Link>

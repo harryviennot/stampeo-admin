@@ -17,8 +17,8 @@ import {
 import { DeltaBadge } from "@/components/delta-badge";
 import { useTimeseries } from "@/hooks/use-stats";
 
-const stampsConfig: ChartConfig = {
-  stamps_added: { label: "Stamps", color: "var(--chart-3)" },
+const scansConfig: ChartConfig = {
+  scans_added: { label: "Scans", color: "var(--chart-3)" },
   redemptions: { label: "Redemptions", color: "var(--chart-4)" },
 };
 
@@ -44,11 +44,11 @@ export function ChartsRow({ businessId }: { businessId: string }) {
   });
 
   const buckets = data?.buckets ?? [];
-  const stampsWow = (() => {
+  const scansWow = (() => {
     if (buckets.length < 2) return null;
     const last = buckets[buckets.length - 1];
     const prev = buckets[buckets.length - 2];
-    return wowDelta(last.stamps_added, prev.stamps_added);
+    return wowDelta(last.scans_added, prev.scans_added);
   })();
   const customersWow = (() => {
     if (buckets.length < 2) return null;
@@ -60,15 +60,15 @@ export function ChartsRow({ businessId }: { businessId: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <ChartCard
-        title="Stamps & redemptions"
+        title="Scans & redemptions"
         subtitle="Last 12 weeks"
         legend={
           <div className="flex items-center gap-3">
-            <LegendItem color="var(--chart-3)" label="Stamps" />
+            <LegendItem color="var(--chart-3)" label="Scans" />
             <LegendItem color="var(--chart-4)" label="Redemptions" />
           </div>
         }
-        headerRight={<DeltaBadge deltaPct={stampsWow} label="WoW" />}
+        headerRight={<DeltaBadge deltaPct={scansWow} label="WoW" />}
       >
         {isPending ? (
           <div className="h-[220px] animate-pulse rounded bg-muted/40" />
@@ -77,7 +77,7 @@ export function ChartsRow({ businessId }: { businessId: string }) {
             No activity
           </p>
         ) : (
-          <ChartContainer config={stampsConfig} className="h-[220px] w-full">
+          <ChartContainer config={scansConfig} className="h-[220px] w-full">
             <BarChart data={buckets} margin={{ left: 4, right: 4 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
@@ -101,8 +101,8 @@ export function ChartsRow({ businessId }: { businessId: string }) {
                 }
               />
               <Bar
-                dataKey="stamps_added"
-                fill="var(--color-stamps_added)"
+                dataKey="scans_added"
+                fill="var(--color-scans_added)"
                 radius={4}
               />
               <Bar

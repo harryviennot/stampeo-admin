@@ -17,7 +17,7 @@ export function ActivityBadge({ businessId }: { businessId: string }) {
   const now = Date.now();
   const lastWithActivity = [...buckets]
     .reverse()
-    .find((b) => b.stamps_added > 0 || b.redemptions > 0);
+    .find((b) => b.scans_added > 0 || b.redemptions > 0);
 
   if (!lastWithActivity) {
     return (
