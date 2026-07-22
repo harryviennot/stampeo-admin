@@ -26,6 +26,8 @@ import {
 } from "@/components/business-utils";
 import {
   useActivateBusiness,
+  useGrantNoCardTrial,
+  useRequireCard,
   useSuspendBusiness,
 } from "@/hooks/use-businesses";
 import type { Business } from "@/lib/api";
@@ -34,8 +36,40 @@ export function BusinessHeader({ business }: { business: Business }) {
   const router = useRouter();
   const activate = useActivateBusiness();
   const suspend = useSuspendBusiness();
+  const grantNoCard = useGrantNoCardTrial();
+  const requireCardMut = useRequireCard();
 
-  const busy = activate.isPending || suspend.isPending;
+  const busy =
+    activate.isPending ||
+    suspend.isPending ||
+    grantNoCard.isPending ||
+    requireCardMut.isPending;
+
+  // Card-required is the signup default; a no-card trial is a superadmin
+  // exception. `requires_card_upfront === false` means the exception is granted.
+  const isNoCard = business.requires_card_upfront === false;
+  // Only offer a no-card trial before any card is attached — i.e. still parked
+  // at checkout. A business with a subscription / card on file must not be
+  // detached (the backend rejects it too).
+  const canGrantNoCard = business.billing_status === "pending_checkout";
+
+  const handleGrantNoCard = () =>
+    grantNoCard.mutate(business.id, {
+      onSuccess: () => toast.success("No-card trial granted"),
+      onError: (err) =>
+        toast.error("Could not grant no-card trial", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
+
+  const handleRequireCard = () =>
+    requireCardMut.mutate(business.id, {
+      onSuccess: () => toast.success("Reverted to card-required"),
+      onError: (err) =>
+        toast.error("Could not revert to card-required", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        }),
+    });
 
   const handleActivate = () =>
     activate.mutate(business.id, {
@@ -104,6 +138,44 @@ export function BusinessHeader({ business }: { business: Business }) {
               Access log
             </Link>
           </Button>
+
+          {isNoCard ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={handleRequireCard}
+            >
+              {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              Require card
+            </Button>
+          ) : canGrantNoCard ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" disabled={busy}>
+                  {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                  Grant no-card trial
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Grant a no-card trial?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    &quot;{business.name}&quot; hasn&apos;t attached a card yet.
+                    This starts a fresh trial without one and lifts the checkout
+                    gate; they&apos;ll need a card only once the trial ends.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleGrantNoCard}>
+                    Grant no-card trial
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+
           {business.status === "active" ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
