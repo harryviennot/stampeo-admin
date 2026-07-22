@@ -45,7 +45,7 @@ export const adminKeys = {
     trialCohorts: (weeks: number) => ["stats", "trial-cohorts", weeks] as const,
     broadcastDeliverability: (p: BucketRangeParams) =>
       ["stats", "broadcast-deliverability", p] as const,
-    stampHeatmap: (p: RangeParams) => ["stats", "stamp-heatmap", p] as const,
+    scanHeatmap: (p: RangeParams) => ["stats", "scan-heatmap", p] as const,
     topBusinessesDensity: (limit: number) =>
       ["stats", "top-businesses-density", limit] as const,
     platformHealth: ["stats", "platform-health"] as const,

@@ -14,7 +14,7 @@ const STAGES: Array<{
   { key: "cohort_size", label: "Signed up" },
   { key: "reached_checkout", label: "Past checkout gate" },
   { key: "trial_started", label: "Trial started" },
-  { key: "activated", label: "Activated (stamped)" },
+  { key: "activated", label: "Activated (scanned)" },
   { key: "paid", label: "Paid (active)" },
 ];
 
@@ -78,7 +78,7 @@ export function PaywallFunnelChart() {
             <span className="font-medium">requires_card_upfront</span>. Stages:
             signed up → left the{" "}
             <span className="font-medium">pending_checkout</span> gate → trial
-            started → recorded a stamp → reached{" "}
+            started → recorded a scan → reached{" "}
             <span className="font-medium">billing_status = active</span>. This is
             a current-state snapshot, not an event log. Compare the two columns to
             read the paywall&apos;s top-of-funnel and trial→paid effect.

@@ -44,8 +44,8 @@ import { OnboardingFunnelChart } from "./_components/onboarding-funnel-chart";
 import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
 import { RevenueCard } from "./_components/revenue-card";
 import { SetupWizardFunnelChart } from "./_components/setup-wizard-funnel-chart";
-import { StampHeatmapCard } from "./_components/stamp-heatmap-card";
-import { StampsChart } from "./_components/stamps-chart";
+import { ScanHeatmapCard } from "./_components/scan-heatmap-card";
+import { ScansChart } from "./_components/scans-chart";
 import {
   TopBusinessesAllTimeCard,
   TopBusinessesRollingCard,
@@ -160,7 +160,7 @@ export default function DashboardPage() {
       {/* ── Platform totals ── */}
       <SectionHeader
         title="Platform totals"
-        description="Lifetime counts across every business on the platform. Customer, stamp and reward volume carry a rolling 30-day window (last 30 days vs the prior 30) so the comparison stays fair year-round."
+        description="Lifetime counts across every business on the platform. Customer, scan and reward volume carry a rolling 30-day window (last 30 days vs the prior 30) so the comparison stays fair year-round."
       />
 
       {/* Volume & 30d momentum */}
@@ -192,22 +192,22 @@ export default function DashboardPage() {
           info="Every customer ever enrolled across all businesses. The 30d line shows enrollments in the last 30 days; the trend compares that against the prior 30 days."
         />
         <StatCard
-          label="Total Stamps"
-          value={stats?.total_stamps}
+          label="Total Scans"
+          value={stats?.total_scans}
           loading={statsPending}
           icon={<CircleDot className="h-4 w-4" />}
           subValue={
-            stats ? { current: stats.stamps_current_30d, label: "in last 30d" } : undefined
+            stats ? { current: stats.scans_current_30d, label: "in last 30d" } : undefined
           }
           trend={
             stats
               ? {
-                  current: stats.stamps_current_30d,
-                  previous: stats.stamps_prior_30d,
+                  current: stats.scans_current_30d,
+                  previous: stats.scans_prior_30d,
                 }
               : undefined
           }
-          info="Every stamp_added transaction ever recorded. The 30d line and trend (last 30 days vs prior 30) are the primary gauge of platform usage."
+          info="Every scan (stamp_added or points_earned transaction) ever recorded. The 30d line and trend (last 30 days vs prior 30) are the primary gauge of platform usage."
         />
         <StatCard
           label="Total Rewards"
@@ -225,7 +225,7 @@ export default function DashboardPage() {
                 }
               : undefined
           }
-          info="Lifetime reward redemptions (transactions with type = 'reward_redeemed'). The 30d line and trend show how many loyalty loops closed recently — complements total stamps."
+          info="Lifetime reward redemptions (transactions with type = 'reward_redeemed'). The 30d line and trend show how many loyalty loops closed recently — complements total scans."
         />
       </div>
 
@@ -238,7 +238,7 @@ export default function DashboardPage() {
           loading={healthPending}
           icon={<Activity className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Distinct businesses with at least one stamp_added in the last 7 days — the platform's weekly active businesses (WAU)."
+          info="Distinct businesses with at least one scan in the last 7 days — the platform's weekly active businesses (WAU)."
         />
         <StatCard
           label="Active Businesses · 30d"
@@ -246,7 +246,7 @@ export default function DashboardPage() {
           loading={healthPending}
           icon={<Activity className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Distinct businesses with at least one stamp_added in the last 30 days — monthly active businesses (MAU)."
+          info="Distinct businesses with at least one scan in the last 30 days — monthly active businesses (MAU)."
         />
         <StatCard
           label="Stickiness · WAU/MAU"
@@ -291,8 +291,8 @@ export default function DashboardPage() {
             <>
               <p className="font-medium text-foreground">Do end-customers come back?</p>
               <p className="mt-1 text-muted-foreground">
-                Platform-wide share of customers who stamped on ≥2 distinct days
-                ÷ customers who ever stamped. The single best proof the loyalty
+                Platform-wide share of customers who scanned on ≥2 distinct days
+                ÷ customers who ever scanned. The single best proof the loyalty
                 product retains. <span className="font-medium">Higher is better.</span>
               </p>
             </>
@@ -325,21 +325,21 @@ export default function DashboardPage() {
               <p className="mt-1 text-muted-foreground">
                 More than 2 customers <span className="font-medium">and</span>{" "}
                 active in the last 30 days. The honest &quot;live businesses&quot;
-                number to quote — immune to self-stamp demos.
+                number to quote — immune to self-scan demos.
               </p>
             </>
           }
         />
         <StatCard
-          label="Median Days to First Stamp"
+          label="Median Days to First Scan"
           value={
-            health && health.median_days_first_stamp !== null
-              ? Math.round(health.median_days_first_stamp * 10) / 10
+            health && health.median_days_first_scan !== null
+              ? Math.round(health.median_days_first_scan * 10) / 10
               : "—"
           }
           loading={healthPending}
           icon={<Timer className="h-4 w-4" />}
-          info="Median time from business signup to its first stamp_added, across businesses that ever stamped. Activation latency — if it creeps up, onboarding is getting harder. Lower is better."
+          info="Median time from business signup to its first scan, across businesses that ever scanned. Activation latency — if it creeps up, onboarding is getting harder. Lower is better."
         />
       </div>
 
@@ -360,8 +360,8 @@ export default function DashboardPage() {
             <>
               <p className="font-medium text-foreground">Customers who enrolled but never scanned</p>
               <p className="mt-1 text-muted-foreground">
-                Zero <span className="font-medium">stamp_added</span>{" "}
-                transactions ever. Percentage = zombies ÷ total customers.
+                Zero <span className="font-medium">scans</span>{" "}
+                ever. Percentage = zombies ÷ total customers.
                 Above 30% turns red — a signal that onboarding is leaky
                 (customers install the pass but don&apos;t come back).{" "}
                 <span className="font-medium">Lower is better.</span>
@@ -384,7 +384,7 @@ export default function DashboardPage() {
               <p className="font-medium text-foreground">Businesses that signed up but never scanned</p>
               <p className="mt-1 text-muted-foreground">
                 Created &gt; 7 days ago with zero{" "}
-                <span className="font-medium">stamp_added</span> transactions
+                <span className="font-medium">scans</span>
                 ever. Percentage = ghosts ÷ total businesses. Surfaces
                 post-signup activation failures — the ones most likely to churn
                 before paying.{" "}
@@ -495,10 +495,10 @@ export default function DashboardPage() {
       {/* ── Growth ── */}
       <SectionHeader
         title="Growth"
-        description="Weekly inflow of stamps, new businesses, and new customers. The signal you check to answer 'is the platform growing?'."
+        description="Weekly inflow of scans, new businesses, and new customers. The signal you check to answer 'is the platform growing?'."
       />
       <LazyMount minHeight={700} className="space-y-8">
-        <StampsChart />
+        <ScansChart />
         <div className="grid gap-4 lg:grid-cols-2">
           <BusinessSignupsChart />
           <CustomerSignupsChart />
@@ -525,7 +525,7 @@ export default function DashboardPage() {
       />
       <LazyMount minHeight={600} className="space-y-8">
         <PassLifecycleChart />
-        <StampHeatmapCard />
+        <ScanHeatmapCard />
       </LazyMount>
 
       {/* ── Monetization ── */}
@@ -641,7 +641,7 @@ export default function DashboardPage() {
                 <p className="font-medium text-foreground">Ad-readiness gate: ≥ 25% at day 60</p>
                 <p className="mt-1 text-muted-foreground">
                   Share of the most recent fully-matured signup cohort still active
-                  (stamping) around day 60. At or above 25% means acquired
+                  (scanning) around day 60. At or above 25% means acquired
                   businesses stick well enough to justify paid acquisition.
                   <span className="font-medium"> Higher is better.</span>
                 </p>

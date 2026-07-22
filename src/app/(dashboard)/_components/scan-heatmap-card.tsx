@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChartCard } from "@/components/chart-card";
-import { useStampHeatmap } from "@/hooks/use-stats";
+import { useScanHeatmap } from "@/hooks/use-stats";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -12,44 +12,45 @@ function heatColor(value: number, max: number): string {
   return `rgba(59, 130, 246, ${intensity.toFixed(2)})`;
 }
 
-export function StampHeatmapCard() {
-  const { data, isPending } = useStampHeatmap({ range: "30d" });
+export function ScanHeatmapCard() {
+  const { data, isPending } = useScanHeatmap({ range: "30d" });
   const [hovered, setHovered] = useState<{
     dow: number;
     hour: number;
-    stamps: number;
+    scans: number;
   } | null>(null);
 
-  const { grid, max, totalStamps, peak } = useMemo(() => {
+  const { grid, max, totalScans, peak } = useMemo(() => {
     const g: number[][] = Array.from({ length: 7 }, () =>
       Array.from({ length: 24 }, () => 0)
     );
     let m = 0;
     let total = 0;
-    let p: { dow: number; hour: number; stamps: number } | null = null;
+    let p: { dow: number; hour: number; scans: number } | null = null;
     for (const cell of data?.cells ?? []) {
       if (cell.dow < 0 || cell.dow > 6 || cell.hour < 0 || cell.hour > 23)
         continue;
-      g[cell.dow][cell.hour] = cell.stamps;
-      total += cell.stamps;
-      if (cell.stamps > m) {
-        m = cell.stamps;
+      g[cell.dow][cell.hour] = cell.scans;
+      total += cell.scans;
+      if (cell.scans > m) {
+        m = cell.scans;
         p = cell;
       }
     }
-    return { grid: g, max: m, totalStamps: total, peak: p };
+    return { grid: g, max: m, totalScans: total, peak: p };
   }, [data]);
 
   return (
     <ChartCard
-      title="Stamp activity heatmap"
-      subtitle={`Last 30 days · ${totalStamps.toLocaleString()} stamps`}
+      title="Scan activity heatmap"
+      subtitle={`Last 30 days · ${totalScans.toLocaleString()} scans`}
       info={
         <>
           <p className="font-medium text-foreground">When are scanners most active?</p>
           <p className="mt-1 text-muted-foreground">
             Each cell is one hour × one day-of-week across the last 30 days of{" "}
-            <span className="font-medium">stamp_added</span> transactions (UTC).
+            <span className="font-medium">scan</span> (stamp_added or
+            points_earned) transactions (UTC).
             Darker blue = more scans. Reveals the platform&apos;s operational pulse —
             useful for timing broadcasts, maintenance windows, and support staffing.
           </p>
@@ -58,16 +59,16 @@ export function StampHeatmapCard() {
       headerRight={
         peak ? (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-            Peak: {DAYS[peak.dow]} {peak.hour}:00 · {peak.stamps}
+            Peak: {DAYS[peak.dow]} {peak.hour}:00 · {peak.scans}
           </span>
         ) : null
       }
     >
       {isPending ? (
         <div className="h-[200px] animate-pulse rounded bg-muted/40" />
-      ) : totalStamps === 0 ? (
+      ) : totalScans === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          No stamp activity in the last 30 days
+          No scan activity in the last 30 days
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -95,7 +96,7 @@ export function StampHeatmapCard() {
                       key={`${DAYS[dow]}-${h}`}
                       className="relative h-[18px] w-[18px] rounded-[2px] transition-all hover:ring-2 hover:ring-blue-500 hover:ring-offset-1 hover:ring-offset-background"
                       style={{ background: heatColor(v, max) }}
-                      onMouseEnter={() => setHovered({ dow, hour: h, stamps: v })}
+                      onMouseEnter={() => setHovered({ dow, hour: h, scans: v })}
                       onMouseLeave={() => setHovered(null)}
                     >
                       {isHovered && (
@@ -104,7 +105,7 @@ export function StampHeatmapCard() {
                             {DAYS[dow]} {String(h).padStart(2, "0")}:00
                           </div>
                           <div className="text-muted-foreground tabular-nums">
-                            {v} stamp{v === 1 ? "" : "s"}
+                            {v} scan{v === 1 ? "" : "s"}
                           </div>
                         </div>
                       )}

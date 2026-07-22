@@ -20,8 +20,8 @@ export function TopBusinessesRepeatCard() {
           </p>
           <p className="mt-1 text-muted-foreground">
             <span className="font-medium">Repeat rate</span> = customers who
-            stamped on ≥2 distinct days ÷ customers who ever stamped. Using
-            distinct days (not raw stamps) means a single multi-stamp onboarding
+            scanned on ≥2 distinct days ÷ customers who ever scanned. Using
+            distinct days (not raw scans) means a single multi-scan onboarding
             visit doesn&apos;t count as a return. Limited to businesses with ≥5
             customers. <span className="font-medium">Higher is better.</span>
           </p>

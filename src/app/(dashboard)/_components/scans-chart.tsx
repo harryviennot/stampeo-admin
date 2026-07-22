@@ -24,9 +24,9 @@ import { useTimeseries } from "@/hooks/use-stats";
 type Mode = "weekly" | "daily";
 
 const config: ChartConfig = {
-  stamps_added: { label: "Stamps", color: "var(--chart-3)" },
+  scans_added: { label: "Scans", color: "var(--chart-3)" },
   redemptions: { label: "Redemptions", color: "var(--chart-4)" },
-  stamps_trend: { label: "Stamps (4w avg)", color: "var(--chart-1)" },
+  scans_trend: { label: "Scans (4w avg)", color: "var(--chart-1)" },
 };
 
 function formatBucket(iso: string) {
@@ -41,7 +41,7 @@ function delta(current: number, previous: number): number | null {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-export function StampsChart() {
+export function ScansChart() {
   const [mode, setMode] = useState<Mode>("weekly");
   const isDaily = mode === "daily";
 
@@ -59,29 +59,29 @@ export function StampsChart() {
       const windowStart = Math.max(0, i - 3);
       const slice = buckets.slice(windowStart, i + 1);
       const avg =
-        slice.reduce((s, x) => s + x.stamps_added, 0) / (slice.length || 1);
-      return { ...b, stamps_trend: Math.round(avg) };
+        slice.reduce((s, x) => s + x.scans_added, 0) / (slice.length || 1);
+      return { ...b, scans_trend: Math.round(avg) };
     });
   }, [buckets, isDaily]);
 
   const last = buckets[buckets.length - 1];
   const prev = buckets[buckets.length - 2];
-  const stampsDelta = last && prev ? delta(last.stamps_added, prev.stamps_added) : null;
+  const scansDelta = last && prev ? delta(last.scans_added, prev.scans_added) : null;
   const redemptionsDelta =
     last && prev ? delta(last.redemptions, prev.redemptions) : null;
 
-  const totalStamps = buckets.reduce((s, b) => s + b.stamps_added, 0);
+  const totalScans = buckets.reduce((s, b) => s + b.scans_added, 0);
   const totalRedemptions = buckets.reduce((s, b) => s + b.redemptions, 0);
   const redemptionRate =
-    totalStamps > 0 ? Math.round((totalRedemptions / totalStamps) * 100) : 0;
+    totalScans > 0 ? Math.round((totalRedemptions / totalScans) * 100) : 0;
 
   const best = useMemo(() => {
     if (buckets.length === 0) return null;
     const peak = buckets.reduce(
-      (b, x) => (x.stamps_added > b.stamps_added ? x : b),
+      (b, x) => (x.scans_added > b.scans_added ? x : b),
       buckets[0]
     );
-    return peak.stamps_added > 0 ? peak : null;
+    return peak.scans_added > 0 ? peak : null;
   }, [buckets]);
 
   const isCurrentPeak = best && last && best.period_start === last.period_start;
@@ -90,7 +90,7 @@ export function StampsChart() {
 
   return (
     <ChartCard
-      title="Stamps & redemptions"
+      title="Scans & redemptions"
       subtitle={
         isDaily
           ? "Last 30 days · daily"
@@ -98,21 +98,21 @@ export function StampsChart() {
       }
       info={
         <>
-          <p className="font-medium text-foreground">Platform-wide stamp activity</p>
+          <p className="font-medium text-foreground">Platform-wide scan activity</p>
           <p className="mt-1 text-muted-foreground">
-            <span className="font-medium">Stamps</span>: rows in{" "}
+            <span className="font-medium">Scans</span>: rows in{" "}
             <span className="font-medium">transactions</span> with{" "}
-            type = <span className="font-medium">&apos;stamp_added&apos;</span>.{" "}
+            type <span className="font-medium">stamp_added or points_earned</span>.{" "}
             <span className="font-medium">Redemptions</span>:{" "}
             type = <span className="font-medium">&apos;redeem&apos;</span>. Redemption
-            rate = redemptions / stamps. Switch to daily for a per-day line over
+            rate = redemptions / scans. Switch to daily for a per-day line over
             the last 30 days.
           </p>
         </>
       }
       legend={
         <div className="flex items-center gap-3">
-          <LegendItem color="var(--chart-3)" label="Stamps" />
+          <LegendItem color="var(--chart-3)" label="Scans" />
           <LegendItem color="var(--chart-4)" label="Redemptions" />
           {!isDaily && <LegendItem color="var(--chart-1)" label="4w avg" />}
         </div>
@@ -139,9 +139,9 @@ export function StampsChart() {
           {/* Headline strip */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <HeadlineTile
-              label={`Stamps ${latestLabel}`}
-              value={last?.stamps_added ?? 0}
-              delta={stampsDelta}
+              label={`Scans ${latestLabel}`}
+              value={last?.scans_added ?? 0}
+              delta={scansDelta}
             />
             <HeadlineTile
               label={`Redemptions ${latestLabel}`}
@@ -151,11 +151,11 @@ export function StampsChart() {
             <HeadlineTile
               label="Redemption rate"
               value={`${redemptionRate}%`}
-              subtitle={`${totalRedemptions.toLocaleString()} of ${totalStamps.toLocaleString()}`}
+              subtitle={`${totalRedemptions.toLocaleString()} of ${totalScans.toLocaleString()}`}
             />
             <HeadlineTile
               label={bestLabel}
-              value={best ? best.stamps_added : "—"}
+              value={best ? best.scans_added : "—"}
               subtitle={
                 best
                   ? `${formatBucket(best.period_start)}${
@@ -169,7 +169,7 @@ export function StampsChart() {
 
           {/* One ComposedChart for both modes (swapping the chart component type
               under Recharts v3's ResponsiveContainer can fail to re-init). Daily
-              renders two Lines (stamps + redemptions); weekly renders Bars + the
+              renders two Lines (scans + redemptions); weekly renders Bars + the
               4-week trend Line. `key` forces a clean remount between modes. */}
           <ChartContainer config={config} className="h-[240px] w-full">
             <ComposedChart
@@ -204,8 +204,8 @@ export function StampsChart() {
                 <>
                   <Line
                     type="monotone"
-                    dataKey="stamps_added"
-                    stroke="var(--color-stamps_added)"
+                    dataKey="scans_added"
+                    stroke="var(--color-scans_added)"
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4 }}
@@ -224,8 +224,8 @@ export function StampsChart() {
               ) : (
                 <>
                   <Bar
-                    dataKey="stamps_added"
-                    fill="var(--color-stamps_added)"
+                    dataKey="scans_added"
+                    fill="var(--color-scans_added)"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
@@ -235,8 +235,8 @@ export function StampsChart() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="stamps_trend"
-                    stroke="var(--color-stamps_trend)"
+                    dataKey="scans_trend"
+                    stroke="var(--color-scans_trend)"
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4 }}

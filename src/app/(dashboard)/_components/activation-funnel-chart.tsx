@@ -22,7 +22,7 @@ export function ActivationFunnelChart() {
         { stage: "1. Created", count: data.created },
         { stage: "2. Design live", count: data.has_active_design },
         { stage: "3. First customer", count: data.has_first_customer },
-        { stage: "4. First stamp", count: data.has_first_stamp },
+        { stage: "4. First scan", count: data.has_first_scan },
       ]
     : [];
 
@@ -35,7 +35,7 @@ export function ActivationFunnelChart() {
 
   const activationRate =
     data && data.created > 0
-      ? Math.round((data.has_first_stamp / data.created) * 100)
+      ? Math.round((data.has_first_scan / data.created) * 100)
       : null;
 
   return (
@@ -53,7 +53,7 @@ export function ActivationFunnelChart() {
             <span className="font-medium">3.</span> at least one{" "}
             <span className="font-medium">customer</span> enrolled →{" "}
             <span className="font-medium">4.</span> at least one{" "}
-            <span className="font-medium">stamp_added</span> transaction. Last
+            <span className="font-medium">scan</span> (earn transaction). Last
             stage ÷ first = activation rate. A red bar means that stage drops ≥40%.
           </p>
         </>

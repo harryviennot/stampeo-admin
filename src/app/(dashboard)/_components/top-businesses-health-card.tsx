@@ -21,11 +21,11 @@ export function TopBusinessesHealthCard() {
           <p className="mt-1 text-muted-foreground">
             A 0–100 score blending four normalized metrics across qualifying
             businesses (≥5 customers and active in the last 7 days, which filters
-            out onboarding self-stamping):{" "}
+            out onboarding self-scanning):{" "}
             <span className="font-medium">repeat-customer rate ×0.40</span>,{" "}
-            <span className="font-medium">stamps-per-customer ×0.25</span>,{" "}
+            <span className="font-medium">scans-per-customer ×0.25</span>,{" "}
             <span className="font-medium">rewards given ×0.20</span>,{" "}
-            <span className="font-medium">7-day stamp volume ×0.15</span>. Volume
+            <span className="font-medium">7-day scan volume ×0.15</span>. Volume
             is deliberately down-weighted so whales don&apos;t dominate.{" "}
             <span className="font-medium">Higher is better.</span>
           </p>
