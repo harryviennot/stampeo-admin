@@ -67,7 +67,7 @@ export function PaywallFunnelChart() {
   return (
     <ChartCard
       title="Hard-paywall funnel"
-      subtitle="Last 12 weeks · card-upfront cohort vs no-card baseline"
+      subtitle="Last 12 weeks · card-upfront (default) vs no-card exceptions"
       info={
         <>
           <p className="font-medium text-foreground">
@@ -80,8 +80,9 @@ export function PaywallFunnelChart() {
             <span className="font-medium">pending_checkout</span> gate → trial
             started → recorded a scan → reached{" "}
             <span className="font-medium">billing_status = active</span>. This is
-            a current-state snapshot, not an event log. Compare the two columns to
-            read the paywall&apos;s top-of-funnel and trial→paid effect.
+            a current-state snapshot, not an event log. Card-upfront is now the
+            signup default, so the no-card column is only grandfathered businesses
+            and superadmin-granted no-card trials.
           </p>
         </>
       }
@@ -113,7 +114,7 @@ export function PaywallFunnelChart() {
                 className="h-2 w-2 rounded-sm"
                 style={{ background: "var(--chart-4)" }}
               />
-              No-card baseline
+              No-card exceptions
               <span className="text-muted-foreground">
                 · n={noCardGroup?.cohort_size ?? 0}
               </span>

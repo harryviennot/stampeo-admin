@@ -569,6 +569,28 @@ export async function deleteBusiness(id: string): Promise<void> {
   if (!res.ok) throw new Error(await res.text());
 }
 
+// Card-required is the signup default; these grant/revoke the per-business
+// no-card trial exception. The backend returns the fresh billing snapshot.
+export async function grantNoCardTrial(id: string): Promise<unknown> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}/no-card-trial`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function requireCard(id: string): Promise<unknown> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/${id}/require-card`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function revokePassTypeId(
   id: string
 ): Promise<{ id: string; identifier: string; status: string }> {
