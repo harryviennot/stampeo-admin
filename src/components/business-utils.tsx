@@ -55,6 +55,10 @@ export function StatusBadge({ status }: { status: string }) {
 export function BillingStatusBadge({ status }: { status: string | null | undefined }) {
   if (!status) return null;
   const map: Record<string, { label: string; className: string }> = {
+    pending_checkout: {
+      label: "Pending checkout",
+      className: "bg-violet-50 text-violet-700 border-violet-200",
+    },
     trial: { label: "Trial", className: "bg-sky-50 text-sky-700 border-sky-200" },
     active: { label: "Active", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     grace: { label: "Grace", className: "bg-amber-50 text-amber-700 border-amber-200" },

@@ -45,6 +45,10 @@ import { WalletCard } from "@/components/card/WalletCard";
 import { ScaledCardWrapper } from "@/components/card/ScaledCardWrapper";
 import { ResellerBadge } from "@/components/business-utils";
 import {
+  GATE_REASON_LABELS,
+  type CheckoutGateReason,
+} from "@/lib/checkout-gate";
+import {
   useBusinessMembers,
   useBusinessStats,
   useBusinessSubscription,
@@ -993,6 +997,33 @@ function SubscriptionOverview({ data }: { data: BusinessSubscription }) {
         />
         <InfoRow label="Trial ends" value={formatIsoDate(data.trial_ends_at)} />
         <InfoRow label="Grace ends" value={formatIsoDate(data.grace_ends_at)} />
+        {/* Payment-failure deadline. Distinct from "Grace ends" above, which is
+            the trial-grace anchor: this one cuts access for a delinquent card. */}
+        <InfoRow
+          label="Payment grace ends"
+          value={formatIsoDate(data.payment_grace_ends_at)}
+        />
+        {data.checkout_grace_until && (
+          <InfoRow
+            label="Checkout override until"
+            value={formatIsoDate(data.checkout_grace_until)}
+          />
+        )}
+        {data.checkout_gate_reason && (
+          <InfoRow
+            label="Checkout gate"
+            value={
+              <Badge
+                variant="outline"
+                className="bg-red-50 text-red-700 border-red-200"
+              >
+                {GATE_REASON_LABELS[
+                  data.checkout_gate_reason as CheckoutGateReason
+                ] ?? data.checkout_gate_reason}
+              </Badge>
+            }
+          />
+        )}
         <InfoRow
           label="Current period ends"
           value={formatIsoDate(data.billing_period_end)}

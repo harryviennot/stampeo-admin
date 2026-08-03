@@ -104,6 +104,10 @@ export interface Business {
   is_founding_partner?: boolean;
   trial_ends_at?: string | null;
   grace_ends_at?: string | null;
+  // Payment-failure deadline; distinct from grace_ends_at (migration 142)
+  payment_grace_ends_at?: string | null;
+  // Superadmin override of the checkout gate (migration 142)
+  checkout_grace_until?: string | null;
   // Hard-paywall cohort flag (migration 86)
   requires_card_upfront?: boolean;
   // Onboarding survey + business contact (sourced from businesses.settings since migration 78)
@@ -587,6 +591,32 @@ export async function requireCard(id: string): Promise<unknown> {
     method: "POST",
     headers,
   });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function extendCheckoutWindow(
+  id: string,
+  days: number
+): Promise<unknown> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${id}/extend-checkout-window`,
+    { method: "POST", headers, body: JSON.stringify({ days }) }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function extendPaymentGrace(
+  id: string,
+  days: number
+): Promise<unknown> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${id}/extend-payment-grace`,
+    { method: "POST", headers, body: JSON.stringify({ days }) }
+  );
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -1432,6 +1462,10 @@ export interface BusinessSubscription {
   is_founding_partner: boolean;
   trial_ends_at: string | null;
   grace_ends_at: string | null;
+  payment_grace_ends_at: string | null;
+  checkout_grace_until: string | null;
+  /** Live gate verdict: "setup_complete" | "window_lapsed" | "usage_cap", or null. */
+  checkout_gate_reason: string | null;
   billing_period_end: string | null;
   cancelled_at: string | null;
   reseller_discount_applied: number | null;
