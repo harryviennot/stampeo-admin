@@ -18,6 +18,8 @@ import {
   fetchBusinessSubscription,
   grantNoCardTrial,
   requireCard,
+  extendCheckoutWindow,
+  extendPaymentGrace,
   suspendBusiness,
   type BucketRangeParams,
   type BusinessListParams,
@@ -125,6 +127,26 @@ export function useRequireCard() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => requireCard(id),
+    onSuccess: () => invalidateBusinessLists(qc),
+  });
+}
+
+/** Escape hatch: give a gated pending_checkout business more free setup time. */
+export function useExtendCheckoutWindow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, days }: { id: string; days: number }) =>
+      extendCheckoutWindow(id, days),
+    onSuccess: () => invalidateBusinessLists(qc),
+  });
+}
+
+/** Escape hatch: push back a payment deadline, lifting a payment suspension. */
+export function useExtendPaymentGrace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, days }: { id: string; days: number }) =>
+      extendPaymentGrace(id, days),
     onSuccess: () => invalidateBusinessLists(qc),
   });
 }

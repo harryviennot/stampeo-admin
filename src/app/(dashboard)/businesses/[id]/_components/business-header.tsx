@@ -28,6 +28,8 @@ import {
   useActivateBusiness,
   useGrantNoCardTrial,
   useRequireCard,
+  useExtendCheckoutWindow,
+  useExtendPaymentGrace,
   useSuspendBusiness,
 } from "@/hooks/use-businesses";
 import type { Business } from "@/lib/api";
@@ -38,12 +40,16 @@ export function BusinessHeader({ business }: { business: Business }) {
   const suspend = useSuspendBusiness();
   const grantNoCard = useGrantNoCardTrial();
   const requireCardMut = useRequireCard();
+  const extendWindow = useExtendCheckoutWindow();
+  const extendGrace = useExtendPaymentGrace();
 
   const busy =
     activate.isPending ||
     suspend.isPending ||
     grantNoCard.isPending ||
-    requireCardMut.isPending;
+    requireCardMut.isPending ||
+    extendWindow.isPending ||
+    extendGrace.isPending;
 
   // Card-required is the signup default; a no-card trial is a superadmin
   // exception. `requires_card_upfront === false` means the exception is granted.
@@ -52,6 +58,38 @@ export function BusinessHeader({ business }: { business: Business }) {
   // at checkout. A business with a subscription / card on file must not be
   // detached (the backend rejects it too).
   const canGrantNoCard = business.billing_status === "pending_checkout";
+  // Escape hatches. The checkout override only makes sense pre-checkout; the
+  // payment one covers a delinquent card, including a business the payment
+  // sweep already suspended (identified by the deadline it leaves behind).
+  const canExtendWindow = business.billing_status === "pending_checkout";
+  const canExtendGrace =
+    business.billing_status === "past_due" ||
+    (business.billing_status === "suspended" &&
+      !!business.payment_grace_ends_at);
+
+  const handleExtendWindow = () =>
+    extendWindow.mutate(
+      { id: business.id, days: 7 },
+      {
+        onSuccess: () => toast.success("Checkout window extended by 7 days"),
+        onError: (err) =>
+          toast.error("Could not extend the checkout window", {
+            description: err instanceof Error ? err.message : undefined,
+          }),
+      }
+    );
+
+  const handleExtendGrace = () =>
+    extendGrace.mutate(
+      { id: business.id, days: 3 },
+      {
+        onSuccess: () => toast.success("Payment grace extended by 3 days"),
+        onError: (err) =>
+          toast.error("Could not extend the payment grace", {
+            description: err instanceof Error ? err.message : undefined,
+          }),
+      }
+    );
 
   const handleGrantNoCard = () =>
     grantNoCard.mutate(business.id, {
@@ -175,6 +213,32 @@ export function BusinessHeader({ business }: { business: Business }) {
               </AlertDialogContent>
             </AlertDialog>
           ) : null}
+
+          {canExtendWindow && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={handleExtendWindow}
+              title="Lifts the checkout gate for 7 more days, whatever the reason"
+            >
+              {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              +7d setup
+            </Button>
+          )}
+
+          {canExtendGrace && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={handleExtendGrace}
+              title="Pushes the payment deadline back 3 days and lifts a payment suspension"
+            >
+              {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              +3d payment
+            </Button>
+          )}
 
           {business.status === "active" ? (
             <AlertDialog>

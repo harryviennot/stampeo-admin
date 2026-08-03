@@ -50,6 +50,7 @@ import {
 } from "@/hooks/use-businesses";
 import { useHeardFromStats, useOnboardingBreakdowns } from "@/hooks/use-stats";
 import { adminKeys } from "@/lib/query-keys";
+import { GATE_REASON_LABELS, checkoutGateReason } from "@/lib/checkout-gate";
 import {
   ArrowUpDown,
   Check,
@@ -112,6 +113,10 @@ type ResellerFilter = "all" | "yes" | "no";
 type CardUpfrontFilter = "all" | "yes" | "no";
 type ActivityFilter = "all" | BusinessActivityFilter;
 type TrialEndingFilter = "all" | "7" | "14" | "0";
+// Client-side: the Billing=pending_checkout filter over-selects, it also
+// catches businesses still legitimately mid-wizard. This narrows to the ones
+// the 402 gate is actually blocking right now.
+type GatedFilter = "all" | "gated" | "open";
 
 interface FilterState {
   status: StatusFilter;
@@ -123,6 +128,7 @@ interface FilterState {
   cardUpfront: CardUpfrontFilter;
   activity: ActivityFilter;
   trialEnding: TrialEndingFilter;
+  gated: GatedFilter;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -135,6 +141,7 @@ const DEFAULT_FILTERS: FilterState = {
   cardUpfront: "all",
   activity: "all",
   trialEnding: "all",
+  gated: "all",
 };
 
 interface SortOption {
@@ -167,6 +174,12 @@ const BILLING_LABELS: Record<BillingFilter, string> = {
   past_due: "Past due",
   cancelled: "Cancelled",
   suspended: "Suspended",
+};
+
+const GATED_LABELS: Record<GatedFilter, string> = {
+  all: "All",
+  gated: "Blocked by checkout gate",
+  open: "Not blocked",
 };
 
 const ACTIVITY_LABELS: Record<ActivityFilter, string> = {
@@ -204,6 +217,7 @@ const FILTER_TO_PARAM: Record<keyof FilterState, string> = {
   cardUpfront: "card",
   activity: "activity",
   trialEnding: "trial",
+  gated: "gated",
 };
 
 const SORT_PARAM = "sort";
@@ -373,7 +387,18 @@ function BusinessesContent() {
   const activate = useActivateBusiness();
   const suspend = useSuspendBusiness();
 
-  const items = data?.items ?? [];
+  // Server-side filters do the paging; the gate verdict is derived client-side
+  // (it depends on the customer count the RPC already returns), so it narrows
+  // the current page rather than the whole result set.
+  const allItems = data?.items ?? [];
+  const items =
+    filters.gated === "all"
+      ? allItems
+      : allItems.filter((biz) =>
+          filters.gated === "gated"
+            ? checkoutGateReason(biz) !== null
+            : checkoutGateReason(biz) === null
+        );
   const total = data?.total ?? 0;
 
   const resetPage = () => setPage(0);
@@ -585,6 +610,17 @@ function BusinessesContent() {
                               no-card
                             </span>
                           )}
+                          {(() => {
+                            const reason = checkoutGateReason(biz);
+                            return reason ? (
+                              <span
+                                className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700"
+                                title={GATE_REASON_LABELS[reason]}
+                              >
+                                gated
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -816,6 +852,15 @@ function FilterMenu({ filters, onChange, onClear }: FilterMenuProps) {
               ] as BillingFilter[]
             ).map((v) => ({ value: v, label: BILLING_LABELS[v] }))}
             onChange={(v) => onChange("billing", v as BillingFilter)}
+          />
+          <FilterSection
+            label="Checkout gate"
+            value={filters.gated}
+            options={(["all", "gated", "open"] as GatedFilter[]).map((v) => ({
+              value: v,
+              label: GATED_LABELS[v],
+            }))}
+            onChange={(v) => onChange("gated", v as GatedFilter)}
           />
           <FilterSection
             label="Activity"
