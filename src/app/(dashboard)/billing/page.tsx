@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  CalendarCheck,
   Coins,
   CreditCard,
   Gift,
@@ -200,7 +201,7 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here."
+          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a €192/yr account contributes €16 rather than its upfront charge."
           footer={
             <>
               {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) && (
@@ -266,6 +267,25 @@ export default function BillingPage() {
           }
         />
         <KpiCard
+          label="Annual mix"
+          value={
+            data?.annual_share_pct == null
+              ? "—"
+              : `${Math.round(data.annual_share_pct)}%`
+          }
+          loading={isPending}
+          icon={<CalendarCheck className="h-4 w-4" />}
+          badgeClass="bg-sky-100 text-sky-700"
+          info="Share of net MRR carried by yearly plans. Yearly amounts are amortized ÷12 to stay comparable with monthly ones, so this is a like-for-like split, not a cash figure."
+          footer={
+            <>
+              {`${data?.annual_active_count ?? 0} on yearly`}
+              {(data?.annual_cash_collected ?? 0) > 0 &&
+                ` · ${formatAmount(data?.annual_cash_collected, currency)} cash/yr`}
+            </>
+          }
+        />
+        <KpiCard
           label="Trial conversion"
           value={
             data?.trial_conversion_rate == null
@@ -323,6 +343,13 @@ export default function BillingPage() {
               <span className="font-semibold">€20</span>, Pro always full price)
               with no expiry. Their discount is a separate Stripe price rather
               than a coupon, so it never appears in discount leakage below.
+            </p>
+            <p className="mt-2 text-sm text-violet-800">
+              Yearly plans bill{" "}
+              <span className="font-semibold">€192 / €384 / €576</span> a year
+              (founding: <span className="font-semibold">€96 / €192</span>), a
+              flat 20% off. Every MRR figure on this page amortizes them ÷12, so
+              a yearly Starter counts as €16.
             </p>
             <p className="mt-2 text-xs text-violet-700">
               The gap between <span className="font-semibold">Net MRR</span> and{" "}

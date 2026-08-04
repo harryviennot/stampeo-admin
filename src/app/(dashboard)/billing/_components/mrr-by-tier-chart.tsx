@@ -26,7 +26,11 @@ export function MrrByTierChart({
   const currency = data?.currency ?? "eur";
   const rows =
     data?.tier_breakdown.map((r) => ({
-      label: `${tierLabel(r.tier)}${r.is_founding ? " ·F" : ""}`,
+      // "·Y2" = 2 of this group's accounts pay yearly. Kept as a suffix rather
+      // than a fourth bar: interval changes who pays when, not how much MRR.
+      label: `${tierLabel(r.tier)}${r.is_founding ? " ·F" : ""}${
+        r.yearly_count ? ` ·Y${r.yearly_count}` : ""
+      }`,
       count: r.count,
       gross_subtotal: r.gross_subtotal,
       net_subtotal: r.net_subtotal,
@@ -45,7 +49,8 @@ export function MrrByTierChart({
             Each tier&apos;s combined subscription MRR next to what&apos;s
             actually collected. A gap between the two is comped or
             coupon-discounted revenue. &quot;·F&quot; marks founding-partner
-            pricing.
+            pricing; &quot;·Y&quot; counts accounts on a yearly plan (their
+            MRR here is amortized ÷12).
           </p>
         </>
       }
