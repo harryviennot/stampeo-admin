@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ import {
 } from "@/lib/business-actions";
 import {
   useActivateBusiness,
+  useBusinessStats,
   useExtendCheckoutWindow,
   useExtendPaymentGrace,
   useGrantNoCardTrial,
@@ -35,7 +36,6 @@ import {
   useSuspendBusiness,
 } from "@/hooks/use-businesses";
 import { useReleasePassTypeId } from "@/hooks/use-certificates";
-import { useBusinessStats } from "@/hooks/use-businesses";
 
 interface RowBusiness {
   id: string;
@@ -61,6 +61,10 @@ export function BusinessRowActions({ business }: { business: RowBusiness }) {
     id: string;
     status: string;
   } | null>(null);
+  const handleCertificate = useCallback(
+    (cert: { id: string; status: string } | null) => setCertificate(cert),
+    []
+  );
 
   const activate = useActivateBusiness();
   const suspend = useSuspendBusiness();
@@ -165,7 +169,7 @@ export function BusinessRowActions({ business }: { business: RowBusiness }) {
           {open && (
             <CertificateAware
               businessId={business.id}
-              onResolved={setCertificate}
+              onResolved={handleCertificate}
             />
           )}
           <ul>
@@ -235,13 +239,14 @@ function CertificateAware({
 }) {
   const { data } = useBusinessStats(businessId);
   const cert = data?.certificate ?? null;
+  const id = cert?.id ?? null;
+  const status = cert?.status ?? null;
 
-  const resolved = cert ? { id: cert.id, status: cert.status } : null;
-  const key = resolved ? `${resolved.id}:${resolved.status}` : "";
-  const [lastKey, setLastKey] = useState<string | null>(null);
-  if (key !== lastKey) {
-    setLastKey(key);
-    onResolved(resolved);
-  }
+  // Must be an effect: updating the parent during this child's render is a
+  // cross-component render-phase update, which React rejects.
+  useEffect(() => {
+    onResolved(id && status ? { id, status } : null);
+  }, [id, status, onResolved]);
+
   return null;
 }
