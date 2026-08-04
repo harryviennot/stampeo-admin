@@ -20,6 +20,7 @@ export const adminKeys = {
       ["stats", "upcoming-payments", limit] as const,
     atRiskPayments: ["stats", "at-risk-payments"] as const,
     billingProjections: ["stats", "billing-projections"] as const,
+    pricingCohorts: ["stats", "pricing-cohort-comparison"] as const,
     conversionCohorts: (granularity: string, universe: string) =>
       ["stats", "conversion-cohorts", granularity, universe] as const,
     timeseries: (p: TimeseriesParams) => ["stats", "timeseries", p] as const,

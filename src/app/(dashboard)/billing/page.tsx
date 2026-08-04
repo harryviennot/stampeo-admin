@@ -24,6 +24,7 @@ import { MrrByTierChart } from "./_components/mrr-by-tier-chart";
 import { UpcomingPaymentsTable } from "./_components/upcoming-payments-table";
 import { AtRiskTable } from "./_components/at-risk-table";
 import { ConversionCohortTable } from "./_components/conversion-cohort-table";
+import { PricingCohortComparison } from "./_components/pricing-cohort-comparison";
 import { formatAmount } from "./_components/format";
 
 function KpiCard({
@@ -94,7 +95,7 @@ function LeakageCard({
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-semibold">Discount leakage</h3>
+          <h3 className="text-sm font-semibold">Coupon leakage</h3>
           <InfoTooltip
             content={
               <>
@@ -106,6 +107,13 @@ function LeakageCard({
                   what&apos;s actually collected after coupons and comps (e.g. a
                   100%-off account collects €0). The gap is the discount given
                   away each month.
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  This counts <strong>coupons and comps only</strong>. The
+                  founding-partner discount is a separate Stripe price rather
+                  than a coupon, so it is already baked into Gross and never
+                  shows up here. See &ldquo;at public rates&rdquo; on Net MRR for
+                  that figure.
                 </p>
               </>
             }
@@ -192,13 +200,21 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends."
+          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here."
           footer={
-            (data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) ? (
-              <span className="text-muted-foreground">
-                {formatAmount(data?.gross_mrr, currency)} gross
-              </span>
-            ) : undefined
+            <>
+              {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) && (
+                <span className="text-muted-foreground">
+                  {formatAmount(data?.gross_mrr, currency)} combined
+                </span>
+              )}
+              {(data?.founding_discount_mrr ?? 0) > 0 && (
+                <span className="text-muted-foreground">
+                  {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) ? " · " : ""}
+                  {formatAmount(data?.public_list_mrr, currency)} at public rates
+                </span>
+              )}
+            </>
           }
         />
         <KpiCard
@@ -290,24 +306,36 @@ export default function BillingPage() {
             <div className="flex items-center gap-1.5">
               <Gift className="h-4 w-4 text-violet-700" />
               <h3 className="text-sm font-semibold text-violet-900">
-                Founding-partner pricing
+                Founding-partner pricing (closed)
               </h3>
             </div>
             <p className="mt-2 text-sm text-violet-800">
-              Founding partners pay 50% off Starter &amp; Growth —{" "}
+              The founding program closed on{" "}
+              <span className="font-semibold">4 August 2026</span>. New signups
+              now pay public rates:{" "}
+              <span className="font-semibold">€20</span> Starter,{" "}
+              <span className="font-semibold">€40</span> Growth,{" "}
+              <span className="font-semibold">€60</span> Pro.
+            </p>
+            <p className="mt-2 text-sm text-violet-800">
+              Grandfathered partners keep 50% off Starter &amp; Growth (
               <span className="font-semibold">€10</span> /{" "}
-              <span className="font-semibold">€20</span>, with Pro at full{" "}
-              <span className="font-semibold">€60</span>. Founding pricing closes
-              at the end of summer (date TBD) — after that, fresh signups pay
-              public rates and net MRR from new business should rise.
+              <span className="font-semibold">€20</span>, Pro always full price)
+              with no expiry. Their discount is a separate Stripe price rather
+              than a coupon, so it never appears in discount leakage below.
             </p>
             <p className="mt-2 text-xs text-violet-700">
-              Existing founding partners keep their rate; their discount is baked
-              into the Stripe price, so it&apos;s already reflected in net MRR
-              above.
+              The gap between <span className="font-semibold">Net MRR</span> and{" "}
+              <span className="font-semibold">at public rates</span> above is
+              what those grandfathered rates cost per month.
             </p>
           </CardContent>
         </Card>
+      </LazyMount>
+
+      {/* Did the price rise pay off? */}
+      <LazyMount minHeight={420}>
+        <PricingCohortComparison />
       </LazyMount>
 
       {/* Conversion cohorts — card-linked vs all signups */}

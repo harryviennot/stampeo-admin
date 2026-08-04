@@ -749,7 +749,12 @@ export interface BillingTierBreakdownRow {
 export interface BillingOverview {
   currency: string;
   net_mrr: number;
+  /** Combined price of all active subscriptions — founding prices included. */
   gross_mrr: number;
+  /** What the same book would bill at public rates (founding discount ignored). */
+  public_list_mrr?: number;
+  /** public_list_mrr - gross_mrr: revenue parked on grandfathered founding rates. */
+  founding_discount_mrr?: number;
   net_arr: number;
   arpa: number;
   active_count: number;
@@ -878,6 +883,51 @@ export async function fetchUpcomingPayments(
 export async function fetchAtRiskPayments(): Promise<AtRiskPayments> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/billing/at-risk`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/** One pricing-regime cohort (founding-era or standard-era). */
+export interface PricingCohort {
+  signups: number;
+  paid: number;
+  active: number;
+  churned: number;
+  /** null when the cohort has no signups yet. */
+  conversion_rate: number | null;
+  net_mrr: number;
+  arpa: number;
+  monthly_churn: number;
+  /** False when churn was borrowed from the blended rate (young cohort). */
+  churn_measured: boolean;
+  lifetime_months: number;
+  ltv: number;
+  revenue_per_100_signups: number;
+  /** False below 10 signups — do not render rates off a handful of rows. */
+  is_mature: boolean;
+}
+
+export interface PricingCohortComparison {
+  currency: string;
+  switch_at: string;
+  blended_monthly_churn: number;
+  reseller_excluded_count: number;
+  founding: PricingCohort;
+  standard: PricingCohort;
+  deltas: {
+    conversion_rate: number | null;
+    arpa: number | null;
+    ltv: number | null;
+    revenue_per_100_signups: number | null;
+  };
+}
+
+export async function fetchPricingCohortComparison(): Promise<PricingCohortComparison> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/billing/pricing-cohort-comparison`,
+    { headers }
+  );
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
