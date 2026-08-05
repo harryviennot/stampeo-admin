@@ -737,6 +737,8 @@ export async function fetchRevenueSnapshot(): Promise<RevenueSnapshot> {
 // ─── Billing analytics dashboard ───────────────────────────────────
 // All amounts are in minor units (cents). "net" = money actually perceived
 // (Stripe coupons / comps netted out); "gross" = list price before discounts.
+// Every recurring figure is MONTHLY: yearly subscriptions are amortized ÷12
+// server-side, so a €192/yr plan contributes €16 to MRR.
 
 export interface BillingTierBreakdownRow {
   tier: string;
@@ -744,12 +746,19 @@ export interface BillingTierBreakdownRow {
   count: number;
   gross_subtotal: number;
   net_subtotal: number;
+  /** How many of `count` are on a yearly plan. */
+  yearly_count?: number;
 }
 
 export interface BillingOverview {
   currency: string;
   net_mrr: number;
+  /** Combined price of all active subscriptions — founding prices included. */
   gross_mrr: number;
+  /** What the same book would bill at public rates (founding discount ignored). */
+  public_list_mrr?: number;
+  /** public_list_mrr - gross_mrr: revenue parked on grandfathered founding rates. */
+  founding_discount_mrr?: number;
   net_arr: number;
   arpa: number;
   active_count: number;
@@ -762,6 +771,14 @@ export interface BillingOverview {
   trial_conversion_rate?: number | null;
   trial_conversion_converted?: number;
   trial_conversion_sample?: number;
+  /** Active businesses on a yearly plan. */
+  annual_active_count?: number;
+  /** Their contribution to net_mrr (already amortized ÷12). */
+  annual_monthly_equiv_mrr?: number;
+  /** Share of net MRR carried by yearly plans, or null when MRR is 0. */
+  annual_share_pct?: number | null;
+  /** Cash a full year of the current yearly book represents. */
+  annual_cash_collected?: number;
   discount_leakage: {
     monthly_waived: number;
     discounted_count: number;
@@ -789,6 +806,9 @@ export interface UpcomingPaymentRow {
   name: string;
   tier: string;
   is_founding: boolean;
+  /** Cadence of the plan. Amounts here are the real per-period charge, so a
+   *  yearly row shows €192, not its monthly equivalent. */
+  interval?: "month" | "year";
   next_charge_at: string | null;
   net_amount: number;
   gross_amount: number;
@@ -878,6 +898,51 @@ export async function fetchUpcomingPayments(
 export async function fetchAtRiskPayments(): Promise<AtRiskPayments> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE_URL}/admin/billing/at-risk`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/** One pricing-regime cohort (founding-era or standard-era). */
+export interface PricingCohort {
+  signups: number;
+  paid: number;
+  active: number;
+  churned: number;
+  /** null when the cohort has no signups yet. */
+  conversion_rate: number | null;
+  net_mrr: number;
+  arpa: number;
+  monthly_churn: number;
+  /** False when churn was borrowed from the blended rate (young cohort). */
+  churn_measured: boolean;
+  lifetime_months: number;
+  ltv: number;
+  revenue_per_100_signups: number;
+  /** False below 10 signups — do not render rates off a handful of rows. */
+  is_mature: boolean;
+}
+
+export interface PricingCohortComparison {
+  currency: string;
+  switch_at: string;
+  blended_monthly_churn: number;
+  reseller_excluded_count: number;
+  founding: PricingCohort;
+  standard: PricingCohort;
+  deltas: {
+    conversion_rate: number | null;
+    arpa: number | null;
+    ltv: number | null;
+    revenue_per_100_signups: number | null;
+  };
+}
+
+export async function fetchPricingCohortComparison(): Promise<PricingCohortComparison> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/billing/pricing-cohort-comparison`,
+    { headers }
+  );
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -1453,6 +1518,9 @@ export interface SubscriptionTierChange {
   old_price_id: string | null;
   new_tier: string | null;
   old_tier: string | null;
+  /** A row can be a cadence switch with no tier change (growth /mo -> /yr). */
+  new_interval?: "month" | "year" | null;
+  old_interval?: "month" | "year" | null;
 }
 
 export interface BusinessSubscription {
@@ -1468,11 +1536,19 @@ export interface BusinessSubscription {
   checkout_gate_reason: string | null;
   billing_period_end: string | null;
   cancelled_at: string | null;
+  /** Cadence of the live subscription. */
+  billing_interval?: "month" | "year";
+  /** Cadence a queued Stripe schedule flips to at period end, or null. */
+  pending_billing_interval?: "month" | "year" | null;
   reseller_discount_applied: number | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
-  current_price_meta: { tier: string; kind: "public" | "founding" } | null;
+  current_price_meta: {
+    tier: string;
+    kind: "public" | "founding";
+    interval?: "month" | "year";
+  } | null;
   total_paid: number;
   total_paid_currency: string;
   paid_invoice_count: number;
@@ -1933,4 +2009,61 @@ export async function resendChangelogRelease(
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
   return data.release as ChangelogRelease;
+}
+
+// ─── One-shot campaigns ─────────────────────────────────────────────
+// Two-step by design, mirroring the --dry-run/--send CLI blasts it replaces:
+// fetch the audience to review it, then send with the slug echoed back.
+
+export interface CampaignRecipient {
+  business_id: string;
+  business_name: string;
+  owner_email: string;
+  locale: string;
+  tier_name: string;
+  current_price: string;
+  yearly_price: string;
+}
+
+export interface CampaignAudience {
+  campaign: string;
+  recipient_count: number;
+  business_count: number;
+  by_locale: Record<string, number>;
+  by_tier: Record<string, number>;
+  sample: CampaignRecipient[];
+  sample_truncated: boolean;
+}
+
+// The send is queued, not awaited: the worker paces itself against Resend's
+// rate limit. `queued` is how many recipients the worker will attempt.
+export interface CampaignSendResult {
+  queued: number;
+  skipped: boolean;
+}
+
+export async function fetchCampaignAudience(
+  slug: string
+): Promise<CampaignAudience> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/campaigns/${slug}/audience`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as CampaignAudience;
+}
+
+// `confirm` must equal the campaign slug, or the backend refuses with a 400.
+export async function sendCampaign(
+  slug: string,
+  confirm: string
+): Promise<CampaignSendResult> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/campaigns/${slug}/send`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ confirm }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as CampaignSendResult;
 }

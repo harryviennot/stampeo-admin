@@ -38,16 +38,14 @@ import {
   BusinessInitials,
   BillingStatusBadge,
   PlanBadge,
+  PricingRegimeBadge,
   ResellerBadge,
   StatusBadge,
 } from "@/components/business-utils";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { EmptyState } from "@/components/empty-state";
-import {
-  useActivateBusiness,
-  useBusinesses,
-  useSuspendBusiness,
-} from "@/hooks/use-businesses";
+import { useBusinesses } from "@/hooks/use-businesses";
+import { BusinessRowActions } from "./_components/row-actions";
 import { useHeardFromStats, useOnboardingBreakdowns } from "@/hooks/use-stats";
 import { adminKeys } from "@/lib/query-keys";
 import { GATE_REASON_LABELS, checkoutGateReason } from "@/lib/checkout-gate";
@@ -384,8 +382,6 @@ function BusinessesContent() {
   const { data, isPending, isPlaceholderData } = useBusinesses(params);
   const { data: heardFromStats } = useHeardFromStats();
   const { data: breakdowns } = useOnboardingBreakdowns();
-  const activate = useActivateBusiness();
-  const suspend = useSuspendBusiness();
 
   // Server-side filters do the paging; the gate verdict is derived client-side
   // (it depends on the customer count the RPC already returns), so it narrows
@@ -402,26 +398,6 @@ function BusinessesContent() {
   const total = data?.total ?? 0;
 
   const resetPage = () => setPage(0);
-
-  const handleActivate = (id: string, name: string) => {
-    activate.mutate(id, {
-      onSuccess: () => toast.success(`Activated ${name}`),
-      onError: (err) =>
-        toast.error("Failed to activate", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        }),
-    });
-  };
-
-  const handleSuspend = (id: string, name: string) => {
-    suspend.mutate(id, {
-      onSuccess: () => toast.success(`Suspended ${name}`),
-      onError: (err) =>
-        toast.error("Failed to suspend", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        }),
-    });
-  };
 
   const prefetchDetail = (id: string) => {
     qc.prefetchQuery({
@@ -546,10 +522,6 @@ function BusinessesContent() {
               </TableHeader>
               <TableBody>
                 {items.map((biz) => {
-                  const busy =
-                    (activate.isPending &&
-                      activate.variables === biz.id) ||
-                    (suspend.isPending && suspend.variables === biz.id);
                   return (
                     <TableRow key={biz.id}>
                       <TableCell>
@@ -575,8 +547,10 @@ function BusinessesContent() {
                             >
                               {biz.name}
                             </Link>
-                            <div className="font-mono text-xs text-muted-foreground">
-                              /{biz.url_slug}
+                            <div className="mt-0.5">
+                              <PricingRegimeBadge
+                                isFounding={!!biz.is_founding_partner}
+                              />
                             </div>
                           </div>
                         </div>
@@ -656,56 +630,9 @@ function BusinessesContent() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {biz.status === "active" ? (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-red-200 text-red-600 hover:bg-red-50"
-                                disabled={busy}
-                              >
-                                Suspend
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Suspend business?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will suspend &quot;{biz.name}&quot;. They
-                                  will no longer be able to scan customers or
-                                  manage their account.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
-                                  onClick={() =>
-                                    handleSuspend(biz.id, biz.name)
-                                  }
-                                >
-                                  Suspend
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-green-200 text-green-600 hover:bg-green-50"
-                            disabled={busy}
-                            onClick={() => handleActivate(biz.id, biz.name)}
-                          >
-                            {busy && (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            )}
-                            Reactivate
-                          </Button>
-                        )}
+                        <div className="flex justify-end">
+                          <BusinessRowActions business={biz} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

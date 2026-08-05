@@ -20,6 +20,7 @@ export const adminKeys = {
       ["stats", "upcoming-payments", limit] as const,
     atRiskPayments: ["stats", "at-risk-payments"] as const,
     billingProjections: ["stats", "billing-projections"] as const,
+    pricingCohorts: ["stats", "pricing-cohort-comparison"] as const,
     conversionCohorts: (granularity: string, universe: string) =>
       ["stats", "conversion-cohorts", granularity, universe] as const,
     timeseries: (p: TimeseriesParams) => ["stats", "timeseries", p] as const,
@@ -97,6 +98,10 @@ export const adminKeys = {
       variant?: string
     ) => ["emails", "preview", category, name, locale, variant ?? ""] as const,
     flows: ["emails", "flows"] as const,
+  },
+  campaigns: {
+    all: ["campaigns"] as const,
+    audience: (slug: string) => ["campaigns", "audience", slug] as const,
   },
   changelog: {
     all: ["changelog"] as const,

@@ -63,6 +63,12 @@ export function ProjectionChart() {
             acquisition up or down; the curve trends toward a stable equilibrium
             rather than collapsing.
           </p>
+          <p className="mt-1 text-muted-foreground">
+            <strong>Reads low right now.</strong> New MRR is derived from the
+            trailing 3 months of activations, which were all on founding rates.
+            Businesses signing up since 4 Aug 2026 pay roughly double, so actual
+            new MRR should run ahead of this line until the window rolls over.
+          </p>
         </>
       }
       legend={

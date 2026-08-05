@@ -973,6 +973,15 @@ function SubscriptionOverview({ data }: { data: BusinessSubscription }) {
                   Founding
                 </Badge>
               )}
+              {(data.current_price_meta?.interval ?? data.billing_interval) ===
+                "year" && (
+                <Badge
+                  variant="outline"
+                  className="bg-sky-50 text-sky-700 border-sky-200"
+                >
+                  Yearly
+                </Badge>
+              )}
               {data.current_price_meta?.kind === "founding" && (
                 <span className="text-xs text-muted-foreground">
                   (founding price)
@@ -1028,6 +1037,19 @@ function SubscriptionOverview({ data }: { data: BusinessSubscription }) {
           label="Current period ends"
           value={formatIsoDate(data.billing_period_end)}
         />
+        {/* A queued Stripe schedule flips the cadence at period end. Nothing
+            has changed yet, so this is separate from the Plan row above. */}
+        {data.pending_billing_interval && (
+          <InfoRow
+            label="Billing cycle switch"
+            value={
+              <span className="text-sm">
+                Switches to {data.pending_billing_interval}ly on{" "}
+                {formatIsoDate(data.billing_period_end)}
+              </span>
+            }
+          />
+        )}
         <InfoRow
           label="Cancelled at"
           value={formatIsoDate(data.cancelled_at)}
@@ -1100,6 +1122,16 @@ function SubscriptionStripeIds({ data }: { data: BusinessSubscription }) {
   );
 }
 
+function planLabel(
+  tier: string | null | undefined,
+  interval: "month" | "year" | null | undefined,
+): string {
+  if (!tier) return "—";
+  const label = TIER_LABELS[tier] || tier;
+  if (!interval) return label;
+  return `${label} ${interval === "year" ? "/yr" : "/mo"}`;
+}
+
 function TierChangesCard({ data }: { data: BusinessSubscription }) {
   return (
     <Card>
@@ -1120,18 +1152,12 @@ function TierChangesCard({ data }: { data: BusinessSubscription }) {
                 key={change.id}
                 className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm"
               >
+                {/* A row can be a pure cadence switch (same tier, /mo -> /yr),
+                    so the interval is part of the label, not a separate badge. */}
                 <div className="flex items-center gap-2 font-medium">
-                  <span>
-                    {change.old_tier
-                      ? TIER_LABELS[change.old_tier] || change.old_tier
-                      : "—"}
-                  </span>
+                  <span>{planLabel(change.old_tier, change.old_interval)}</span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>
-                    {change.new_tier
-                      ? TIER_LABELS[change.new_tier] || change.new_tier
-                      : "—"}
-                  </span>
+                  <span>{planLabel(change.new_tier, change.new_interval)}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
                   {formatUnixDate(change.created)}

@@ -84,3 +84,28 @@ export function FoundingPartnerBadge() {
     </Badge>
   );
 }
+
+/**
+ * Which pricing regime a business is on. Founding partners are grandfathered at
+ * 50% off Starter/Growth with no expiry; everyone else pays public rates. The
+ * program closed 2026-08-04, so this is effectively "joined before or after".
+ */
+export function PricingRegimeBadge({ isFounding }: { isFounding: boolean }) {
+  return (
+    <Badge
+      variant="outline"
+      className={
+        isFounding
+          ? "bg-violet-50 text-violet-700 border-violet-200"
+          : "bg-secondary text-muted-foreground"
+      }
+      title={
+        isFounding
+          ? "Founding partner: 50% off Starter and Growth, grandfathered with no expiry"
+          : "Standard pricing: signed up after the founding program closed"
+      }
+    >
+      {isFounding ? "Founding" : "Standard"}
+    </Badge>
+  );
+}
