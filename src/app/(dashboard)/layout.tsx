@@ -17,6 +17,7 @@ const navLinks = [
   { href: "/users", label: "Users" },
   { href: "/certificates", label: "Certificates" },
   { href: "/emails", label: "Emails" },
+  { href: "/campaigns", label: "Campaigns" },
   { href: "/changelog", label: "Changelog" },
 ];
 

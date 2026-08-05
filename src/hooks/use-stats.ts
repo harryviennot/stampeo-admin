@@ -13,6 +13,7 @@ import {
   fetchUpcomingPayments,
   fetchAtRiskPayments,
   fetchBillingProjections,
+  fetchPricingCohortComparison,
   fetchConversionCohorts,
   type CohortGranularity,
   type CohortUniverse,
@@ -96,6 +97,13 @@ export function useBillingProjections() {
   return useQuery({
     queryKey: adminKeys.stats.billingProjections,
     queryFn: fetchBillingProjections,
+  });
+}
+
+export function usePricingCohortComparison() {
+  return useQuery({
+    queryKey: adminKeys.stats.pricingCohorts,
+    queryFn: fetchPricingCohortComparison,
   });
 }
 

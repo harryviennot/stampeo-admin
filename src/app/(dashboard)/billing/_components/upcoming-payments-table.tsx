@@ -88,7 +88,14 @@ export function UpcomingPaymentsTable() {
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    <PlanBadge tier={r.tier} />
+                    <div className="flex items-center gap-1.5">
+                      <PlanBadge tier={r.tier} />
+                      {r.interval === "year" && (
+                        <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-px text-[10px] text-sky-700">
+                          annual
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <span className="text-sm">
@@ -98,8 +105,15 @@ export function UpcomingPaymentsTable() {
                       {relativeDays(r.next_charge_at)}
                     </span>
                   </TableCell>
+                  {/* The real invoice amount, not the amortized monthly one:
+                      a yearly plan is about to be charged its full year. */}
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatAmount(r.net_amount, currency)}
+                    {r.interval === "year" && (
+                      <span className="text-[11px] font-normal text-muted-foreground">
+                        /yr
+                      </span>
+                    )}
                     {r.is_discounted && r.gross_amount > r.net_amount && (
                       <span className="block text-[11px] font-normal text-muted-foreground line-through">
                         {formatAmount(r.gross_amount, currency)}
