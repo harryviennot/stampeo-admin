@@ -2010,3 +2010,60 @@ export async function resendChangelogRelease(
   const data = await res.json();
   return data.release as ChangelogRelease;
 }
+
+// ─── One-shot campaigns ─────────────────────────────────────────────
+// Two-step by design, mirroring the --dry-run/--send CLI blasts it replaces:
+// fetch the audience to review it, then send with the slug echoed back.
+
+export interface CampaignRecipient {
+  business_id: string;
+  business_name: string;
+  owner_email: string;
+  locale: string;
+  tier_name: string;
+  current_price: string;
+  yearly_price: string;
+}
+
+export interface CampaignAudience {
+  campaign: string;
+  recipient_count: number;
+  business_count: number;
+  by_locale: Record<string, number>;
+  by_tier: Record<string, number>;
+  sample: CampaignRecipient[];
+  sample_truncated: boolean;
+}
+
+// The send is queued, not awaited: the worker paces itself against Resend's
+// rate limit. `queued` is how many recipients the worker will attempt.
+export interface CampaignSendResult {
+  queued: number;
+  skipped: boolean;
+}
+
+export async function fetchCampaignAudience(
+  slug: string
+): Promise<CampaignAudience> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/campaigns/${slug}/audience`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as CampaignAudience;
+}
+
+// `confirm` must equal the campaign slug, or the backend refuses with a 400.
+export async function sendCampaign(
+  slug: string,
+  confirm: string
+): Promise<CampaignSendResult> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/campaigns/${slug}/send`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ confirm }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as CampaignSendResult;
+}
