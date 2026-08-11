@@ -2067,3 +2067,216 @@ export async function sendCampaign(
   if (!res.ok) throw new Error(await res.text());
   return (await res.json()) as CampaignSendResult;
 }
+
+// ─── Outreach (WhatsApp win-back) ───────────────────────────────
+
+export interface OutreachBusinessContext {
+  name?: string;
+  billing_status?: string;
+  created_at?: string;
+  wizard_completed?: boolean;
+  wizard_steps_done?: number;
+  wizard_last_chapter?: string | null;
+  customer_count?: number;
+}
+
+export type OutreachStatus =
+  | "active"
+  | "replied"
+  | "closed"
+  | "opted_out"
+  | "undeliverable";
+
+export type OutreachTrack =
+  | "pending_checkout"
+  | "past_due"
+  | "cancelled"
+  | "backfill";
+
+export interface OutreachConversation {
+  id: string;
+  business_id: string;
+  user_id: string | null;
+  track: OutreachTrack;
+  channel: "whatsapp" | "email";
+  phone_e164: string | null;
+  status: OutreachStatus;
+  variant: "a" | "b" | null;
+  automation_paused_at: string | null;
+  last_inbound_at: string | null;
+  last_outbound_at: string | null;
+  admin_last_read_at: string | null;
+  created_at: string;
+  unread?: boolean;
+  owner_name?: string | null;
+  owner_email?: string | null;
+  business?: OutreachBusinessContext;
+}
+
+export interface OutreachMessage {
+  id: string;
+  conversation_id: string;
+  direction: "outbound" | "inbound";
+  channel: "whatsapp" | "email";
+  step: "m1" | "m2" | null;
+  template_key: string | null;
+  variant: "a" | "b" | null;
+  locale: string | null;
+  body: string | null;
+  status: string;
+  error_code: string | null;
+  created_at: string;
+}
+
+export interface OutreachConversationList {
+  conversations: OutreachConversation[];
+  unread_count: number;
+}
+
+export interface OutreachThread {
+  conversation: OutreachConversation;
+  messages: OutreachMessage[];
+  owner: { name?: string; email?: string; locale?: string; phone?: string };
+  business: OutreachBusinessContext;
+  reply_window: { open: boolean; expires_at_epoch: number | null };
+}
+
+export interface OutreachAudienceTrack {
+  count: number;
+  by_channel: Record<string, number>;
+  sample: {
+    business_id: string;
+    business_name: string;
+    locale: string;
+    channel: string;
+    variant: string | null;
+    step: string;
+  }[];
+}
+
+export interface OutreachAudience {
+  enabled: boolean;
+  paused: string | null;
+  backfill_active: boolean;
+  test_mode: boolean;
+  twilio_configured: boolean;
+  sandbox: boolean;
+  tracks: Record<string, OutreachAudienceTrack>;
+}
+
+export interface OutreachStats {
+  window_days: number;
+  outbound: number;
+  sent: number;
+  delivered: number;
+  read: number;
+  failed: number;
+  inbound: number;
+}
+
+export interface OutreachHealth {
+  last_7_days: OutreachStats;
+  last_30_days: OutreachStats;
+  paused: string | null;
+  backfill_active: boolean;
+  variants: Record<
+    string,
+    { threads: number; replied: number; opted_out: number; converted: number }
+  >;
+}
+
+export async function fetchOutreachConversations(params: {
+  status?: string;
+  track?: string;
+} = {}): Promise<OutreachConversationList> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(`${API_BASE_URL}/admin/outreach/conversations${qs}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as OutreachConversationList;
+}
+
+export async function fetchOutreachThread(id: string): Promise<OutreachThread> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/outreach/conversations/${id}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as OutreachThread;
+}
+
+// Refused with a 409 once the 24h WhatsApp service window has closed.
+export async function sendOutreachReply(
+  id: string,
+  body: string
+): Promise<{ message: OutreachMessage }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/outreach/conversations/${id}/reply`,
+    { method: "POST", headers, body: JSON.stringify({ body }) }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { message: OutreachMessage };
+}
+
+export async function outreachConversationAction(
+  id: string,
+  action: "read" | "close" | "mark-replied" | "mark-opted-out"
+): Promise<{ ok: boolean }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/outreach/conversations/${id}/${action}`,
+    { method: "POST", headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { ok: boolean };
+}
+
+export async function fetchOutreachAudience(): Promise<OutreachAudience> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/outreach/audience`, {
+    headers,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as OutreachAudience;
+}
+
+export async function fetchOutreachHealth(): Promise<OutreachHealth> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/outreach/health`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as OutreachHealth;
+}
+
+export async function startOutreachBackfill(
+  confirm: string
+): Promise<{ queued: number; skipped: boolean }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/admin/outreach/backfill`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ confirm }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { queued: number; skipped: boolean };
+}
+
+export async function setOutreachPaused(
+  paused: boolean,
+  reason?: string
+): Promise<{ paused: string | null }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/outreach/${paused ? "pause" : "resume"}`,
+    {
+      method: "POST",
+      headers,
+      ...(paused ? { body: JSON.stringify({ reason }) } : {}),
+    }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { paused: string | null };
+}

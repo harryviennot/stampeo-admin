@@ -103,6 +103,14 @@ export const adminKeys = {
     all: ["campaigns"] as const,
     audience: (slug: string) => ["campaigns", "audience", slug] as const,
   },
+  outreach: {
+    all: ["outreach"] as const,
+    conversations: (params: { status?: string; track?: string } = {}) =>
+      ["outreach", "conversations", params] as const,
+    thread: (id: string) => ["outreach", "thread", id] as const,
+    audience: ["outreach", "audience"] as const,
+    health: ["outreach", "health"] as const,
+  },
   changelog: {
     all: ["changelog"] as const,
     draft: ["changelog", "draft"] as const,
