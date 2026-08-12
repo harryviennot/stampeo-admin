@@ -71,6 +71,8 @@ export interface Business {
   status: "active" | "suspended";
   subscription_tier: string;
   logo_url: string | null;
+  /** Language the merchant's passes and emails are written in ('fr' | 'en' | 'es'). */
+  primary_locale?: string | null;
   settings: {
     category?: string;
     description?: string;
@@ -196,6 +198,70 @@ export interface UserListParams {
   offset?: number;
   search?: string;
   role?: "owner" | "admin" | "scanner" | "reseller";
+}
+
+// ============================================================================
+// Card designs (platform-wide grid) — GET /admin/card-designs
+// ============================================================================
+
+/** "Which cards are actually in use" — `live` is active + trial. */
+export type CardDesignBillingFilter = "live" | "active" | "trial";
+
+export type CardDesignSortBy =
+  | "customers_total"
+  | "scans_total"
+  | "scans_30d"
+  | "last_activity_at"
+  | "design_created_at"
+  | "design_updated_at"
+  | "business_name";
+
+export interface CardDesignListParams {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  is_active?: boolean;
+  card_type?: "stamp" | "points";
+  status?: "pending" | "active" | "suspended";
+  billing?: CardDesignBillingFilter;
+  onboarding_finished?: boolean;
+  tier?: "starter" | "growth" | "pro";
+  sort_by?: CardDesignSortBy;
+  sort_dir?: "asc" | "desc";
+}
+
+/** Business context carried alongside each design on the grid. */
+export interface AdminCardDesignBusiness {
+  id: string;
+  name: string;
+  url_slug: string | null;
+  status: string | null;
+  billing_status: string | null;
+  subscription_tier: string | null;
+  /** Drives which language the pass previews in. */
+  primary_locale: string;
+  onboarding_finished: boolean;
+  /**
+   * `businesses.settings.customer_data_collection` verbatim. Merchant-defined
+   * sign-up fields become {{variables}} on the card, and their labels /
+   * fallbacks are the only way to preview those lines — see lib/design-preview.
+   */
+  customer_data_collection: Record<string, unknown>;
+}
+
+export interface AdminCardDesignItem {
+  /**
+   * Null only when the backend could not serialize the row, in which case
+   * `render_error` says why. One broken legacy design must not blank the page.
+   */
+  design: CardDesign | null;
+  render_error: string | null;
+  business: AdminCardDesignBusiness;
+  /** Per-BUSINESS, not per-design: a scan has no design attribution. */
+  customers_total: number;
+  scans_total: number;
+  scans_30d: number;
+  last_activity_at: string | null;
 }
 
 export interface TimeseriesParams {
@@ -540,6 +606,16 @@ export async function fetchBusinesses(
   const headers = await getAuthHeaders();
   const qs = buildQuery(params);
   const res = await fetch(`${API_BASE_URL}/admin/businesses${qs}`, { headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function fetchCardDesigns(
+  params: CardDesignListParams = {}
+): Promise<Paginated<AdminCardDesignItem>> {
+  const headers = await getAuthHeaders();
+  const qs = buildQuery(params);
+  const res = await fetch(`${API_BASE_URL}/admin/card-designs${qs}`, { headers });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

@@ -1,7 +1,24 @@
-import { CardDesign, CustomStampConfig } from "@/types/design";
+import { CardDesign, CustomStampConfig, RewardTier } from "@/types/design";
 import { rgbToHex } from "@/lib/color-utils";
 
 export { rgbToHex } from "@/lib/color-utils";
+
+/**
+ * Sample balance for points-card PREVIEWS.
+ * Placed at 70% of the way to the **second-to-last** milestone so a multi-reward
+ * ladder shows a lively mix of reached, in-progress and upcoming states. With a
+ * single reward, 70% of that reward. An empty ladder falls back to a small
+ * non-zero value so the strip never previews blank.
+ */
+export function defaultPointsSampleBalance(rewards: RewardTier[]): number {
+  const sorted = [...rewards].sort((a, b) => a.threshold - b.threshold);
+  if (sorted.length === 0) return 70;
+  const target =
+    sorted.length >= 2
+      ? sorted[sorted.length - 2].threshold
+      : sorted[0].threshold;
+  return Math.round(target * 0.7);
+}
 
 // ============================================================================
 // Color Utilities
