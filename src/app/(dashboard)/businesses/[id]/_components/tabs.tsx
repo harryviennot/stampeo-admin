@@ -18,6 +18,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { buildPreviewValues } from "@/lib/design-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -170,7 +171,7 @@ export function BusinessTabs({ business }: { business: Business }) {
       </div>
 
       {tab === "info" && <InfoTab business={business} />}
-      {tab === "design" && <DesignTab businessId={business.id} />}
+      {tab === "design" && <DesignTab business={business} />}
       {tab === "certificate" && <CertificateTab businessId={business.id} />}
       {tab === "team" && <TeamTab businessId={business.id} />}
       {tab === "subscription" && <SubscriptionTab businessId={business.id} />}
@@ -366,8 +367,20 @@ function InfoTab({ business }: { business: Business }) {
   );
 }
 
-function DesignTab({ businessId }: { businessId: string }) {
-  const { data: stats, isPending } = useBusinessStats(businessId);
+function DesignTab({ business }: { business: Business }) {
+  const { data: stats, isPending } = useBusinessStats(business.id);
+  // Same {{variable}} fill the card grid uses, so a design previews identically
+  // whether you reach it here or from /card-designs.
+  const { values, locale } = buildPreviewValues({
+    design: stats?.active_design,
+    business: {
+      id: business.id,
+      name: business.name,
+      primary_locale: business.primary_locale,
+      customer_data_collection: business.settings
+        ?.customer_data_collection as Record<string, unknown> | undefined,
+    },
+  });
   return (
     <Card>
       <CardContent className="pt-6">
@@ -387,6 +400,8 @@ function DesignTab({ businessId }: { businessId: string }) {
                   design={stats.active_design}
                   stamps={3}
                   showQR={false}
+                  variableValues={values}
+                  locale={locale}
                 />
               </ScaledCardWrapper>
             </div>

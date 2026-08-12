@@ -1,5 +1,6 @@
 import type {
   AccessSessionListParams,
+  CardDesignListParams,
   BucketRangeParams,
   BusinessListParams,
   CustomerSignupsByBizParams,
@@ -61,6 +62,10 @@ export const adminKeys = {
       ["stats", "top-businesses-repeat", limit] as const,
     topBusinessesHealth: (limit: number) =>
       ["stats", "top-businesses-health", limit] as const,
+  },
+  cardDesigns: {
+    all: ["card-designs"] as const,
+    list: (p: CardDesignListParams) => ["card-designs", "list", p] as const,
   },
   businesses: {
     all: ["businesses"] as const,
