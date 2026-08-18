@@ -24,6 +24,14 @@ const config: ChartConfig = {
   pessimistic: { label: "Pessimistic", color: "var(--chart-4)" },
 };
 
+// Low confidence has to read as a warning: a projection off two departures
+// must not render with the same authority as one off two hundred.
+const confidenceStyles: Record<"low" | "medium" | "high", string> = {
+  low: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  medium: "bg-muted text-muted-foreground",
+  high: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+};
+
 function monthLabel(offset: number): string {
   if (offset === 0) return "Now";
   const d = new Date();
@@ -49,7 +57,7 @@ export function ProjectionChart() {
   return (
     <ChartCard
       title="MRR projection · next 12 months"
-      subtitle="Pessimistic · realistic · optimistic — from collected net MRR"
+      subtitle="Measured churn, conversion and forward pricing — band reflects sample size"
       info={
         <>
           <p className="font-medium text-foreground">
@@ -58,24 +66,71 @@ export function ProjectionChart() {
           <p className="mt-1 text-muted-foreground">
             Starts from current net MRR and evolves each month as{" "}
             <span className="font-medium">prior × (1 − churn) + new MRR</span>.
-            New MRR is the average net revenue from newly-activated paying
-            businesses per month (card payers only). Scenarios scale churn and
-            acquisition up or down; the curve trends toward a stable equilibrium
-            rather than collapsing.
+            The first months come from the trials already on hand, weighted by
+            the measured trial→paid rate; later months use the acquisition run
+            rate.
           </p>
           <p className="mt-1 text-muted-foreground">
-            <strong>Reads low right now.</strong> New MRR is derived from the
-            trailing 3 months of activations, which were all on founding rates.
-            Businesses signing up since 4 Aug 2026 pay roughly double, so actual
-            new MRR should run ahead of this line until the window rolls over.
+            <strong>Churn is measured on paying customers only.</strong> A trial
+            that expires without ever paying is a conversion failure, not churn,
+            so it is excluded. The rate is weighted by customer-months at risk
+            and pulled toward a 3%/mo prior while the sample is thin
+            {a?.churn_events !== undefined && a?.exposure_months !== undefined
+              ? ` (currently ${a.churn_events} ${
+                  a.churn_events === 1 ? "departure" : "departures"
+                } over ${Math.round(a.exposure_months)} customer-months)`
+              : ""}
+            .
           </p>
+          <p className="mt-1 text-muted-foreground">
+            <strong>New business is priced at public rates.</strong> Every
+            current payer is a grandfathered founding partner on €10/€20, but
+            new signups pay €20/€40, so the run rate is repriced forward rather
+            than extrapolated
+            {a?.conversion_haircut !== undefined
+              ? ` — then discounted ${Math.round(
+                  (1 - a.conversion_haircut) * 100
+                )}% for the conversion the price rise costs, ${
+                  a.haircut_measured ? "measured" : "assumed"
+                } while the post-4-Aug cohort is young`
+              : ""}
+            . Grandfathered partners keep their real rate in the starting MRR.
+          </p>
+          {a?.window_months !== undefined && !a.window_is_full && (
+            <p className="mt-1 text-muted-foreground">
+              <strong>Window widens on its own.</strong> Churn is measured over
+              the {a.window_months} month
+              {a.window_months === 1 ? "" : "s"} of paid history that exist,
+              growing to {a.window_target_months ?? 6} as the book ages. No
+              change needed — the band narrows as the sample grows.
+            </p>
+          )}
         </>
       }
       legend={
         a ? (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            churn {(a.churn_rate * 100).toFixed(1)}%/mo · +
-            {formatAmount(a.new_mrr_per_month, currency)}/mo new
+          <span className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
+            {a.confidence && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                  confidenceStyles[a.confidence]
+                }`}
+                title={
+                  a.confidence === "low"
+                    ? "Thin sample — treat the spread, not the line, as the answer"
+                    : "Sample size behind churn and conversion"
+                }
+              >
+                {a.confidence} confidence
+              </span>
+            )}
+            <span>
+              churn {(a.churn_rate * 100).toFixed(1)}%/mo
+              {a.window_months !== undefined
+                ? ` over ${a.window_months}mo`
+                : ""}{" "}
+              · +{formatAmount(a.new_mrr_per_month, currency)}/mo new
+            </span>
           </span>
         ) : undefined
       }
@@ -165,6 +220,19 @@ export function ProjectionChart() {
               />
             </ComposedChart>
           </ChartContainer>
+
+          {data && a?.churn_rate_low !== undefined &&
+            a?.churn_rate_high !== undefined && (
+              <p className="mt-3 text-center text-[11px] text-muted-foreground tabular-nums">
+                Scenarios span the measured churn band{" "}
+                {(a.churn_rate_low * 100).toFixed(1)}–
+                {(a.churn_rate_high * 100).toFixed(1)}%/mo
+                {a.trial_conversion_sample
+                  ? ` and the ${a.trial_conversion_sample}-trial conversion sample`
+                  : ""}
+                , not fixed multipliers.
+              </p>
+            )}
 
           {data && (
             <div className="mt-4 grid grid-cols-3 gap-2 border-t pt-4 text-center">
