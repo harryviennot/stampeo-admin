@@ -19,6 +19,7 @@ import { useBillingProjections } from "@/hooks/use-stats";
 import { formatAmount, formatAmountCompact } from "./format";
 
 const config: ChartConfig = {
+  actual: { label: "Actual", color: "var(--foreground)" },
   optimistic: { label: "Optimistic", color: "var(--chart-2)" },
   realistic: { label: "Realistic", color: "var(--chart-1)" },
   pessimistic: { label: "Pessimistic", color: "var(--chart-4)" },
@@ -32,6 +33,13 @@ const confidenceStyles: Record<"low" | "medium" | "high", string> = {
   high: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
 };
 
+/** "2026-06" -> a short localized month label, matching the forecast axis. */
+function shortMonth(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  if (!y || !m) return month;
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "short" });
+}
+
 function monthLabel(offset: number): string {
   if (offset === 0) return "Now";
   const d = new Date();
@@ -44,24 +52,50 @@ export function ProjectionChart() {
   const { data, isPending } = useBillingProjections();
   const currency = data?.currency ?? "eur";
 
-  const points =
+  // Trailing actuals first, then the forecast. The handover point carries BOTH
+  // an `actual` and the three scenario values, so the solid history line meets
+  // the projection instead of leaving a gap at "Now".
+  const history = data?.history ?? [];
+  const historyPoints = history.map((h) => ({
+    label: shortMonth(h.month),
+    actual: h.net_mrr,
+  }));
+
+  const forecastPoints =
     data?.scenarios.realistic.mrr.map((_, i) => ({
       label: monthLabel(i),
       optimistic: data.scenarios.optimistic.mrr[i],
       realistic: data.scenarios.realistic.mrr[i],
       pessimistic: data.scenarios.pessimistic.mrr[i],
+      // Only "Now" is both the last actual and the first forecast point.
+      ...(i === 0 ? { actual: data.scenarios.realistic.mrr[0] } : {}),
     })) ?? [];
+
+  const points = [...historyPoints, ...forecastPoints];
+
+  // Month-over-month growth across the actuals, which is the honest check on
+  // whether the projected new-MRR run rate is believable.
+  const lastActual = history.at(-1)?.net_mrr;
+  const prevActual = history.at(-2)?.net_mrr;
+  const actualGrowthPct =
+    lastActual != null && prevActual ? ((lastActual - prevActual) / prevActual) * 100 : null;
 
   const a = data?.assumptions;
 
   return (
     <ChartCard
       title="MRR projection · next 12 months"
-      subtitle="Measured churn, conversion and forward pricing — band reflects sample size"
+      subtitle="Solid line is real month-end MRR; dashed is the forecast band"
       info={
         <>
           <p className="font-medium text-foreground">
             Where MRR is heading under three scenarios
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            The solid line left of <span className="font-medium">Now</span> is
+            real month-end net MRR, so the forecast can be checked against what
+            the book has actually been doing rather than taken on trust. If the
+            projected slope looks nothing like the actual one, trust the actuals.
           </p>
           <p className="mt-1 text-muted-foreground">
             Starts from current net MRR and evolves each month as{" "}
@@ -130,6 +164,15 @@ export function ProjectionChart() {
                 ? ` over ${a.window_months}mo`
                 : ""}{" "}
               · +{formatAmount(a.new_mrr_per_month, currency)}/mo new
+              {actualGrowthPct != null && (
+                <>
+                  {" · "}
+                  <span title="Real month-over-month growth across the last two completed months">
+                    last mo actual {actualGrowthPct > 0 ? "+" : ""}
+                    {Math.round(actualGrowthPct)}%
+                  </span>
+                </>
+              )}
             </span>
           </span>
         ) : undefined
@@ -194,6 +237,14 @@ export function ProjectionChart() {
                 stroke="transparent"
                 fill="url(#realisticFill)"
                 isAnimationActive={false}
+              />
+              <Line
+                dataKey="actual"
+                stroke="var(--foreground)"
+                strokeWidth={2.5}
+                dot={{ r: 2.5 }}
+                isAnimationActive={false}
+                connectNulls={false}
               />
               <Line
                 dataKey="optimistic"
