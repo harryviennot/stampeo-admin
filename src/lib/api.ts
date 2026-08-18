@@ -949,8 +949,17 @@ export interface BillingProjectionScenario {
   arr_eoy: number;
 }
 
+export interface BillingMrrHistoryPoint {
+  /** "YYYY-MM" */
+  month: string;
+  net_mrr: number;
+}
+
 export interface BillingProjections {
   currency: string;
+  /** Real month-end net MRR for the trailing completed months, oldest first.
+   *  Empty until the snapshot worker has a full month behind it. */
+  history?: BillingMrrHistoryPoint[];
   assumptions: {
     starting_mrr: number;
     /** Revenue churn — the rate the MRR series is actually rolled forward on. */
