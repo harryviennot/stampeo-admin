@@ -18,7 +18,7 @@ import { DeltaBadge } from "@/components/delta-badge";
 import { InfoTooltip } from "@/components/info-tooltip";
 import { LazyMount } from "@/components/lazy-mount";
 import { useBillingOverview } from "@/hooks/use-stats";
-import type { BillingOverview } from "@/lib/api";
+import type { BillingOverview, PriceSheetRow } from "@/lib/api";
 import { ProjectionChart } from "./_components/projection-chart";
 import { RevenueTrendChart } from "./_components/revenue-trend-chart";
 import { MrrByTierChart } from "./_components/mrr-by-tier-chart";
@@ -76,6 +76,88 @@ function KpiCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+const TIER_ORDER = ["starter", "growth", "pro"];
+
+/** The live price ladder, straight from Stripe.
+ *
+ * This used to be prose spelling out "€20 Starter, €40 Growth, €60 Pro" — which
+ * nothing kept in sync with the actual Prices, so it would go quietly stale the
+ * next time they moved. Rendering it from `price_sheet` means the card cannot
+ * disagree with what customers are billed.
+ */
+function PriceLadder({
+  rows,
+  currency,
+}: {
+  rows: PriceSheetRow[] | undefined;
+  currency: string;
+}) {
+  if (!rows?.length) return null;
+
+  const tiers = TIER_ORDER.filter((t) => rows.some((r) => r.tier === t));
+  const amount = (tier: string, regime: string, interval: string) =>
+    rows.find(
+      (r) => r.tier === tier && r.regime === regime && r.interval === interval
+    );
+
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full text-sm text-violet-900">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-violet-700">
+            <th className="pb-1 pr-4 font-medium">Plan</th>
+            <th className="pb-1 pr-4 font-medium">Public</th>
+            <th className="pb-1 pr-4 font-medium">Founding</th>
+            <th className="pb-1 font-medium">Yearly (public)</th>
+          </tr>
+        </thead>
+        <tbody className="tabular-nums">
+          {tiers.map((tier) => {
+            const pub = amount(tier, "public", "month");
+            const fnd = amount(tier, "founding", "month");
+            const yr = amount(tier, "public", "year");
+            return (
+              <tr key={tier} className="border-t border-violet-200/60">
+                <td className="py-1 pr-4 capitalize">{tier}</td>
+                <td className="py-1 pr-4 font-semibold">
+                  {pub ? formatAmount(pub.amount, currency) : "—"}
+                </td>
+                <td className="py-1 pr-4">
+                  {fnd ? (
+                    <span
+                      className={
+                        fnd.is_discounted ? "font-semibold" : "text-violet-700"
+                      }
+                    >
+                      {formatAmount(fnd.amount, currency)}
+                      {!fnd.is_discounted && " (full price)"}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className="py-1">
+                  {yr ? (
+                    <>
+                      {formatAmount(yr.amount, currency)}
+                      <span className="text-violet-700">
+                        {" "}
+                        · {formatAmount(yr.monthly_equivalent, currency)}/mo
+                      </span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -257,13 +339,41 @@ export default function BillingPage() {
           loading={isPending}
           icon={<Hourglass className="h-4 w-4" />}
           badgeClass="bg-violet-100 text-violet-700"
-          info="Net MRR sitting in trials that have a card on file, if they all convert. No-card trials are excluded (no intent to pay)."
+          info="Net MRR sitting in trials that have a card on file, if they all convert. Each trial is priced at its own plan, so founding-era trials count at €10/€20 and post-4-Aug ones at €20/€40 — watch the public share grow. No-card trials are excluded (no intent to pay)."
           footer={
             <>
               {`${data?.trial_pipeline_count ?? 0} with card`}
+              {(data?.trial_pipeline_public_count ?? 0) > 0 &&
+                ` · ${data?.trial_pipeline_public_count} at public rates (${formatAmount(
+                  data?.trial_pipeline_public_mrr,
+                  currency
+                )})`}
               {(data?.no_card_trial_count ?? 0) > 0 &&
                 ` · ${data?.no_card_trial_count} no card (excluded)`}
             </>
+          }
+        />
+        <KpiCard
+          label="Expected revenue"
+          value={
+            data?.expected_trial_revenue == null
+              ? "—"
+              : formatAmount(data.expected_trial_revenue, currency)
+          }
+          loading={isPending}
+          icon={<Hourglass className="h-4 w-4" />}
+          badgeClass="bg-teal-100 text-teal-700"
+          info="The trial pipeline weighted by the measured trial→paid conversion rate — what the trials on hand are actually worth, rather than what they would be worth if every one converted."
+          footer={
+            data?.trial_conversion_rate == null ? (
+              "no conversion sample yet"
+            ) : (
+              <>
+                {`${formatAmount(data?.trial_pipeline_mrr, currency)} pipeline × ${Math.round(
+                  data.trial_conversion_rate * 100
+                )}% conversion`}
+              </>
+            )
           }
         />
         <KpiCard
@@ -332,24 +442,17 @@ export default function BillingPage() {
             <p className="mt-2 text-sm text-violet-800">
               The founding program closed on{" "}
               <span className="font-semibold">4 August 2026</span>. New signups
-              now pay public rates:{" "}
-              <span className="font-semibold">€20</span> Starter,{" "}
-              <span className="font-semibold">€40</span> Growth,{" "}
-              <span className="font-semibold">€60</span> Pro.
+              pay public rates; grandfathered partners keep 50% off Starter
+              &amp; Growth with no expiry, and Pro is full price for everyone.
+              Their discount is a separate Stripe price rather than a coupon, so
+              it never appears in discount leakage below.
             </p>
+
+            <PriceLadder rows={data?.price_sheet} currency={currency} />
+
             <p className="mt-2 text-sm text-violet-800">
-              Grandfathered partners keep 50% off Starter &amp; Growth (
-              <span className="font-semibold">€10</span> /{" "}
-              <span className="font-semibold">€20</span>, Pro always full price)
-              with no expiry. Their discount is a separate Stripe price rather
-              than a coupon, so it never appears in discount leakage below.
-            </p>
-            <p className="mt-2 text-sm text-violet-800">
-              Yearly plans bill{" "}
-              <span className="font-semibold">€192 / €384 / €576</span> a year
-              (founding: <span className="font-semibold">€96 / €192</span>), a
-              flat 20% off. Every MRR figure on this page amortizes them ÷12, so
-              a yearly Starter counts as €16.
+              Every MRR figure on this page amortizes yearly plans ÷12, so a
+              yearly Starter counts as its monthly equivalent above.
             </p>
             <p className="mt-2 text-xs text-violet-700">
               The gap between <span className="font-semibold">Net MRR</span> and{" "}
