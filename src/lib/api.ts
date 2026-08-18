@@ -826,6 +826,19 @@ export interface BillingTierBreakdownRow {
   yearly_count?: number;
 }
 
+export interface PriceSheetRow {
+  tier: string;
+  regime: "public" | "founding";
+  interval: "month" | "year";
+  /** Real per-period charge, e.g. 19200 for a yearly Starter. */
+  amount: number;
+  /** The same charge amortized to monthly, for MRR-comparable display. */
+  monthly_equivalent: number;
+  currency: string;
+  /** False for founding Pro — it is full price for everyone. */
+  is_discounted: boolean;
+}
+
 export interface BillingOverview {
   currency: string;
   net_mrr: number;
@@ -844,6 +857,18 @@ export interface BillingOverview {
   trial_pipeline_mrr: number;
   trial_pipeline_count: number;
   no_card_trial_count?: number;
+  /** Pipeline split by pricing regime. Each trial is priced at its own plan,
+   *  so this is a grouping — but the blended total hides the mix flip from
+   *  founding (10/20/60) to public (20/40/60) rates. */
+  trial_pipeline_founding_mrr?: number;
+  trial_pipeline_founding_count?: number;
+  trial_pipeline_public_mrr?: number;
+  trial_pipeline_public_count?: number;
+  /** trial_pipeline_mrr × trial_conversion_rate. */
+  expected_trial_revenue?: number | null;
+  /** Live list prices from Stripe, both regimes, so the pricing card does not
+   *  hardcode euro figures that go stale when prices move. */
+  price_sheet?: PriceSheetRow[];
   trial_conversion_rate?: number | null;
   trial_conversion_converted?: number;
   trial_conversion_sample?: number;
@@ -928,10 +953,46 @@ export interface BillingProjections {
   currency: string;
   assumptions: {
     starting_mrr: number;
+    /** Revenue churn — the rate the MRR series is actually rolled forward on. */
     churn_rate: number;
     new_mrr_per_month: number;
     trial_pipeline_mrr: number;
     active_count: number;
+
+    /** How the churn number was arrived at. Measured on the PAID book only:
+     *  an expired trial is a conversion failure, not churn. */
+    logo_churn_rate?: number;
+    revenue_churn_rate?: number;
+    churn_events?: number;
+    exposure_months?: number;
+    churn_measured?: boolean;
+    churn_rate_low?: number;
+    churn_rate_high?: number;
+
+    /** Trailing window the churn rate was measured over. Derived from how much
+     *  paid history exists and capped at `window_target_months`, so it widens
+     *  on its own — `window_is_full` is false until it reaches the target. */
+    window_months?: number;
+    window_is_full?: boolean;
+    window_target_months?: number;
+
+    /** How new business was priced. Acquisition volume is measured; the tier
+     *  mix is repriced at PUBLIC rates, since every current payer is a
+     *  grandfathered founding partner paying roughly half of list. */
+    new_logos_per_month?: number;
+    new_arpa_forward?: number;
+    new_mrr_pricing_basis?: "public" | "observed";
+    conversion_haircut?: number;
+    /** False while the standard-era cohort is too small to measure — the
+     *  haircut is then an assumption and must be labelled as one. */
+    haircut_measured?: boolean;
+
+    trial_conversion_rate?: number | null;
+    trial_conversion_sample?: number;
+    /** Expected new MRR from trials already on hand, months 1..2. */
+    pipeline_by_month?: number[];
+    /** How much the projection should be trusted, from the sample sizes. */
+    confidence?: "low" | "medium" | "high";
   };
   scenarios: {
     pessimistic: BillingProjectionScenario;
