@@ -949,8 +949,17 @@ export interface BillingProjectionScenario {
   arr_eoy: number;
 }
 
+export interface BillingMrrHistoryPoint {
+  /** "YYYY-MM" */
+  month: string;
+  net_mrr: number;
+}
+
 export interface BillingProjections {
   currency: string;
+  /** Real month-end net MRR for the trailing completed months, oldest first.
+   *  Empty until the snapshot worker has a full month behind it. */
+  history?: BillingMrrHistoryPoint[];
   assumptions: {
     starting_mrr: number;
     /** Revenue churn — the rate the MRR series is actually rolled forward on. */
@@ -1042,10 +1051,15 @@ export async function fetchAtRiskPayments(): Promise<AtRiskPayments> {
 /** One pricing-regime cohort (founding-era or standard-era). */
 export interface PricingCohort {
   signups: number;
+  /** Signups that reached a decision point: paid, or trial + grace elapsed.
+   *  Conversion is measured over these, not over raw signups — a cohort younger
+   *  than a trial cycle would otherwise report a structural 0%. */
+  matured?: number;
   paid: number;
   active: number;
   churned: number;
-  /** null when the cohort has no signups yet. */
+  /** paid / matured. null when nothing has matured yet — absence of evidence,
+   *  which must render as "—" rather than 0%. */
   conversion_rate: number | null;
   net_mrr: number;
   arpa: number;
@@ -1055,7 +1069,8 @@ export interface PricingCohort {
   lifetime_months: number;
   ltv: number;
   revenue_per_100_signups: number;
-  /** False below 10 signups — do not render rates off a handful of rows. */
+  /** False below 10 MATURED signups — do not render rates off rows that have
+   *  not had a chance to convert. */
   is_mature: boolean;
 }
 
