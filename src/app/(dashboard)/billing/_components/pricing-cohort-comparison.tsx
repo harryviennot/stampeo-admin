@@ -145,9 +145,14 @@ export function PricingCohortComparison() {
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
                 Not enough data on public rates yet
-                {standard ? ` (${standard.signups} signups)` : ""}. With a
-                30-day trial plus grace, the first real conversions land about a
-                month after the switch. Deltas stay hidden until then.
+                {standard
+                  ? ` — ${standard.signups} signups, ${
+                      standard.matured ?? 0
+                    } past their trial`
+                  : ""}
+                . With a 30-day trial plus grace, the first real conversions
+                land about a month after the switch, so conversion here reads
+                &ldquo;—&rdquo; rather than 0%. Deltas stay hidden until then.
               </span>
             </div>
           )}
