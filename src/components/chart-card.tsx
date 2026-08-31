@@ -36,7 +36,9 @@ export function ChartCard({
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          {/* Wraps: on a phone the legend plus a headerRight stat is wider
+              than the card, and an unwrapped row here scrolls the whole page. */}
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {legend}
             {headerRight}
           </div>
