@@ -396,17 +396,21 @@ function PostEditor({
   const [titleFr, setTitleFr] = useState(release.title_fr ?? "");
   const [titleEn, setTitleEn] = useState(release.title_en ?? "");
   const [titleEs, setTitleEs] = useState(release.title_es ?? "");
+  const [titlePl, setTitlePl] = useState(release.title_pl ?? "");
   const [bodyFr, setBodyFr] = useState(release.body_fr ?? "");
   const [bodyEn, setBodyEn] = useState(release.body_en ?? "");
   const [bodyEs, setBodyEs] = useState(release.body_es ?? "");
+  const [bodyPl, setBodyPl] = useState(release.body_pl ?? "");
 
   useEffect(() => {
     setTitleFr(release.title_fr ?? "");
     setTitleEn(release.title_en ?? "");
     setTitleEs(release.title_es ?? "");
+    setTitlePl(release.title_pl ?? "");
     setBodyFr(release.body_fr ?? "");
     setBodyEn(release.body_en ?? "");
     setBodyEs(release.body_es ?? "");
+    setBodyPl(release.body_pl ?? "");
   }, [release.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveMutation = useMutation({
@@ -421,9 +425,11 @@ function PostEditor({
       | "title_fr"
       | "title_en"
       | "title_es"
+      | "title_pl"
       | "body_fr"
       | "body_en"
-      | "body_es",
+      | "body_es"
+      | "body_pl",
     value: string,
     original: string | null
   ) => {
@@ -436,12 +442,13 @@ function PostEditor({
       <CardHeader>
         <CardTitle>Release post</CardTitle>
         <CardDescription>
-          Headline, article body (Markdown), and hero image. English and Spanish
-          fall back to French when empty. Changes save when you click away.
+          Headline, article body (Markdown), and hero image. English, Spanish,
+          and Polish fall back to French when empty. Changes save when you click
+          away.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label>Title (FR)</Label>
             <Input
@@ -469,9 +476,18 @@ function PostEditor({
               placeholder="Una gran semana para tus tarjetas"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>Title (PL)</Label>
+            <Input
+              value={titlePl}
+              onChange={(e) => setTitlePl(e.target.value)}
+              onBlur={() => saveField("title_pl", titlePl, release.title_pl)}
+              placeholder="Wielki tydzień dla twoich kart"
+            />
+          </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Article body (FR) — Markdown</Label>
             <MarkdownEditor
@@ -499,15 +515,25 @@ function PostEditor({
               placeholder="Cuenta la novedad principal…"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>Article body (PL) — Markdown</Label>
+            <MarkdownEditor
+              value={bodyPl}
+              onChange={setBodyPl}
+              onBlur={() => saveField("body_pl", bodyPl, release.body_pl)}
+              placeholder="Opisz najważniejszą nowość…"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
           <Label>Hero image (optional)</Label>
           <p className="text-xs text-muted-foreground">
             One per language so the screenshot can match the UI the reader sees.
-            English and Spanish fall back to the French image when left empty.
+            English, Spanish, and Polish fall back to the French image when left
+            empty.
           </p>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <HeroSlot
               label="French"
               url={release.image_url_fr}
@@ -522,6 +548,11 @@ function PostEditor({
               label="Spanish (optional)"
               url={release.image_url_es}
               onChange={(url) => saveMutation.mutate({ image_url_es: url })}
+            />
+            <HeroSlot
+              label="Polish (optional)"
+              url={release.image_url_pl}
+              onChange={(url) => saveMutation.mutate({ image_url_pl: url })}
             />
           </div>
         </div>
@@ -539,9 +570,11 @@ const EMPTY_ITEM = {
   title_fr: "",
   title_en: "",
   title_es: "",
+  title_pl: "",
   body_fr: "",
   body_en: "",
   body_es: "",
+  body_pl: "",
 };
 
 function ItemComposer({
@@ -573,9 +606,11 @@ function ItemComposer({
         title_fr: form.title_fr.trim(),
         title_en: form.title_en.trim() || null,
         title_es: form.title_es.trim() || null,
+        title_pl: form.title_pl.trim() || null,
         body_fr: form.body_fr.trim() || null,
         body_en: form.body_en.trim() || null,
         body_es: form.body_es.trim() || null,
+        body_pl: form.body_pl.trim() || null,
       };
       if (editingId) return updateChangelogItem(editingId, payload);
       return createChangelogItem(releaseId, payload);
@@ -607,9 +642,11 @@ function ItemComposer({
       title_fr: item.title_fr,
       title_en: item.title_en ?? "",
       title_es: item.title_es ?? "",
+      title_pl: item.title_pl ?? "",
       body_fr: item.body_fr ?? "",
       body_en: item.body_en ?? "",
       body_es: item.body_es ?? "",
+      body_pl: item.body_pl ?? "",
     });
   };
 
@@ -671,6 +708,11 @@ function ItemComposer({
                     {item.title_es && (
                       <p className="truncate text-xs text-muted-foreground">
                         ES: {item.title_es}
+                      </p>
+                    )}
+                    {item.title_pl && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        PL: {item.title_pl}
                       </p>
                     )}
                   </div>
@@ -756,7 +798,7 @@ function ItemComposer({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Title (FR) *</Label>
               <Input
@@ -787,9 +829,19 @@ function ItemComposer({
                 placeholder="Nuevos iconos de sello"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label>Title (PL)</Label>
+              <Input
+                value={form.title_pl}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title_pl: e.target.value }))
+                }
+                placeholder="Nowe ikony pieczątek"
+              />
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Detail (FR) — Markdown</Label>
               <MarkdownEditor
@@ -811,6 +863,14 @@ function ItemComposer({
               <MarkdownEditor
                 value={form.body_es}
                 onChange={(v) => setForm((f) => ({ ...f, body_es: v }))}
+                minHeight="min-h-20"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Detail (PL) — Markdown</Label>
+              <MarkdownEditor
+                value={form.body_pl}
+                onChange={(v) => setForm((f) => ({ ...f, body_pl: v }))}
                 minHeight="min-h-20"
               />
             </div>

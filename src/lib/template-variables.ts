@@ -27,6 +27,10 @@ export const VARIABLE_KEYS = [
   // The reward the customer just won (multi-reward ladders). Available on the
   // reward_earned + reward_completed triggers.
   'last_reward_name',
+  // Points a basket booster added on top of the base (STA-237). Only resolves
+  // on a boosted scan, so it belongs to points_boosted; the backend strips it
+  // from any other copy rather than leaking the raw token.
+  'bonus_points',
   // Day + month of the customer's birthday, localized by the backend
   // ("14 mars" / "March 14"). Only offered when the business collects it.
   'customer_birthday',
@@ -57,7 +61,17 @@ export const PRO_ONLY_VARIABLES: ReadonlySet<VariableKey> = new Set([
   'store_location',
 ]);
 
-export type Locale = 'en' | 'fr' | 'es';
+/**
+ * ADMIN-ONLY DIVERGENCE: web derives `Locale` from `@/lib/locale`, its
+ * next-intl config. Admin has no i18n runtime, so the supported-locale list
+ * lives here — and is exported so runtime allowlists (design-preview) can be
+ * driven off it rather than re-typing the languages, which is how a business
+ * locale used to silently fall back to English. Adding a language here turns
+ * every map below into a compile error until it is filled in.
+ */
+export const SUPPORTED_LOCALES = ['en', 'fr', 'es', 'pl'] as const;
+
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 /**
  * Localized display names for each canonical variable. Purely a UI concern —
@@ -79,6 +93,7 @@ export const VARIABLE_DISPLAY_NAMES: Record<Locale, Record<VariableKey, string>>
     next_reward_points: 'next_reward_points',
     next_reward_name: 'next_reward_name',
     last_reward_name: 'last_reward_name',
+    bonus_points: 'bonus_points',
     customer_birthday: 'customer_birthday',
   },
   fr: {
@@ -95,6 +110,7 @@ export const VARIABLE_DISPLAY_NAMES: Record<Locale, Record<VariableKey, string>>
     next_reward_points: 'points_prochaine_recompense',
     next_reward_name: 'prochaine_recompense',
     last_reward_name: 'recompense_obtenue',
+    bonus_points: 'points_bonus',
     customer_birthday: 'anniversaire_client',
   },
   es: {
@@ -111,7 +127,27 @@ export const VARIABLE_DISPLAY_NAMES: Record<Locale, Record<VariableKey, string>>
     next_reward_points: 'puntos_siguiente_recompensa',
     next_reward_name: 'siguiente_recompensa',
     last_reward_name: 'recompensa_obtenida',
+    bonus_points: 'puntos_extra',
     customer_birthday: 'cumpleanos_cliente',
+  },
+  // ASCII only: VARIABLE_PATTERN matches `\w`, which excludes Polish
+  // diacritics, so a token carrying one would never match. Transliterated.
+  pl: {
+    stamp_count: 'pieczatki_aktualne',
+    total_stamps: 'pieczatki_max',
+    stamps_left: 'pieczatki_pozostale',
+    rewards_count: 'nagrody_oczekujace',
+    reward_name: 'nazwa_nagrody',
+    business_name: 'nazwa_firmy',
+    customer_first_name: 'imie_klienta',
+    store_location: 'lokal',
+    points_balance: 'punkty_aktualne',
+    points_to_next: 'punkty_pozostale',
+    next_reward_points: 'punkty_nastepnej_nagrody',
+    next_reward_name: 'nastepna_nagroda',
+    last_reward_name: 'zdobyta_nagroda',
+    bonus_points: 'punkty_bonusowe',
+    customer_birthday: 'urodziny_klienta',
   },
 };
 
@@ -322,6 +358,7 @@ const SAMPLE_VALUES: Record<Locale, Record<VariableKey, string>> = {
     next_reward_points: '200',
     next_reward_name: 'Free coffee',
     last_reward_name: 'Free coffee',
+    bonus_points: '60',
     customer_birthday: 'March 14',
   },
   fr: {
@@ -338,6 +375,7 @@ const SAMPLE_VALUES: Record<Locale, Record<VariableKey, string>> = {
     next_reward_points: '200',
     next_reward_name: 'Café offert',
     last_reward_name: 'Café offert',
+    bonus_points: '60',
     customer_birthday: '14 mars',
   },
   es: {
@@ -354,7 +392,25 @@ const SAMPLE_VALUES: Record<Locale, Record<VariableKey, string>> = {
     next_reward_points: '200',
     next_reward_name: 'Café gratis',
     last_reward_name: 'Café gratis',
+    bonus_points: '60',
     customer_birthday: '14 de marzo',
+  },
+  pl: {
+    stamp_count: '3',
+    total_stamps: '10',
+    stamps_left: '7',
+    rewards_count: '1',
+    reward_name: 'Darmowa kawa',
+    business_name: 'Twoja firma',
+    customer_first_name: 'Zofia',
+    store_location: 'Centrum',
+    points_balance: '120',
+    points_to_next: '80',
+    next_reward_points: '200',
+    next_reward_name: 'Darmowa kawa',
+    last_reward_name: 'Darmowa kawa',
+    bonus_points: '60',
+    customer_birthday: '14 marca',
   },
 };
 
@@ -377,6 +433,7 @@ const SAMPLE_FIRST_NAMES: Record<Locale, string[]> = {
   en: ['Sarah', 'James', 'Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan'],
   fr: ['Jeanne', 'Louis', 'Emma', 'Hugo', 'Camille', 'Léa', 'Nathan', 'Chloé'],
   es: ['Lucía', 'Mateo', 'Sofía', 'Diego', 'Valentina', 'Hugo', 'Martina', 'Pablo'],
+  pl: ['Zofia', 'Jakub', 'Julia', 'Antoni', 'Maja', 'Szymon', 'Lena', 'Filip'],
 };
 
 /** Deterministic FNV-style hash so a given seed always maps to the same name. */
@@ -407,6 +464,7 @@ export const POINTS_ALL_REWARDS_READY: Record<Locale, string> = {
   fr: 'Carte complétée',
   en: 'Card completed',
   es: 'Tarjeta completada',
+  pl: 'Karta ukończona',
 };
 
 /**
