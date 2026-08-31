@@ -73,7 +73,18 @@ export const adminKeys = {
     list: (p: BusinessListParams) => ["businesses", "list", p] as const,
     detail: (id: string) => ["businesses", "detail", id] as const,
     stats: (id: string) => ["businesses", "stats", id] as const,
-    members: (id: string) => ["businesses", "members", id] as const,
+    team: (id: string) => ["businesses", "team", id] as const,
+    program: (id: string) => ["businesses", "program", id] as const,
+    designs: (id: string) => ["businesses", "designs", id] as const,
+    locations: (id: string, range: string) =>
+      ["businesses", "locations", id, range] as const,
+    notifications: (id: string) => ["businesses", "notifications", id] as const,
+    broadcasts: (id: string, limit: number, offset: number) =>
+      ["businesses", "broadcasts", id, limit, offset] as const,
+    activity: (id: string, limit: number, offset: number) =>
+      ["businesses", "activity", id, limit, offset] as const,
+    comms: (id: string) => ["businesses", "comms", id] as const,
+    health: (id: string) => ["businesses", "health", id] as const,
     passLifecycle: (id: string, p: BucketRangeParams) =>
       ["businesses", "pass-lifecycle", id, p] as const,
     inactive: (id: string) => ["businesses", "inactive", id] as const,

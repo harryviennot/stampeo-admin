@@ -11,7 +11,16 @@ import {
   deleteBusiness,
   fetchBusinessDetail,
   fetchBusinessInactiveSnapshot,
-  fetchBusinessMembers,
+  fetchBusinessActivity,
+  fetchBusinessBroadcasts,
+  fetchBusinessComms,
+  fetchBusinessDesigns,
+  fetchBusinessHealth,
+  fetchBusinessLocations,
+  fetchBusinessNotifications,
+  fetchBusinessProgram,
+  fetchBusinessTeam,
+  rebuildCardAssets,
   fetchBusinessPassLifecycle,
   fetchBusinesses,
   fetchBusinessStats,
@@ -77,11 +86,103 @@ export function useBusinessSubscription(id: string | undefined) {
   });
 }
 
-export function useBusinessMembers(id: string | undefined) {
+// ── Business support console ──────────────────────────────────────────────
+// One hook per tab. Radix unmounts an inactive TabsContent, so a panel's query
+// only fires when somebody actually opens that tab.
+
+export function useBusinessTeam(id: string | undefined) {
   return useQuery({
-    queryKey: adminKeys.businesses.members(id ?? ""),
-    queryFn: () => fetchBusinessMembers(id!),
+    queryKey: adminKeys.businesses.team(id ?? ""),
+    queryFn: () => fetchBusinessTeam(id!),
     enabled: !!id,
+  });
+}
+
+export function useBusinessProgram(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.program(id ?? ""),
+    queryFn: () => fetchBusinessProgram(id!),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessDesigns(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.designs(id ?? ""),
+    queryFn: () => fetchBusinessDesigns(id!),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessLocations(id: string | undefined, range = "30d") {
+  return useQuery({
+    queryKey: adminKeys.businesses.locations(id ?? "", range),
+    queryFn: () => fetchBusinessLocations(id!, range),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBusinessNotifications(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.notifications(id ?? ""),
+    queryFn: () => fetchBusinessNotifications(id!),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessBroadcasts(
+  id: string | undefined,
+  limit = 25,
+  offset = 0
+) {
+  return useQuery({
+    queryKey: adminKeys.businesses.broadcasts(id ?? "", limit, offset),
+    queryFn: () => fetchBusinessBroadcasts(id!, limit, offset),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBusinessActivity(
+  id: string | undefined,
+  limit = 50,
+  offset = 0
+) {
+  return useQuery({
+    queryKey: adminKeys.businesses.activity(id ?? "", limit, offset),
+    queryFn: () => fetchBusinessActivity(id!, limit, offset),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBusinessComms(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.comms(id ?? ""),
+    queryFn: () => fetchBusinessComms(id!),
+    enabled: !!id,
+  });
+}
+
+export function useBusinessHealth(id: string | undefined) {
+  return useQuery({
+    queryKey: adminKeys.businesses.health(id ?? ""),
+    queryFn: () => fetchBusinessHealth(id!),
+    enabled: !!id,
+  });
+}
+
+/** Rebuild the active design's strips and re-push every installed pass. */
+export function useRebuildCardAssets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => rebuildCardAssets(id),
+    onSuccess: (_data, id) => {
+      // strip_status flips to `regenerating`, which the health chips read.
+      qc.invalidateQueries({ queryKey: adminKeys.businesses.designs(id) });
+      qc.invalidateQueries({ queryKey: adminKeys.businesses.health(id) });
+    },
   });
 }
 

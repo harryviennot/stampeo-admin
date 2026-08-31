@@ -6,13 +6,16 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useBusiness } from "@/hooks/use-businesses";
 import { BusinessHeader } from "./_components/business-header";
-import { StatsRow } from "./_components/stats-row";
-import { ChartsRow } from "./_components/charts-row";
-import { PassLifecycleChart } from "./_components/pass-lifecycle-chart";
-import { ActivityBadge } from "./_components/activity-badge";
-import { OnboardingProgressCard } from "./_components/onboarding-progress-card";
-import { BusinessTabs } from "./_components/tabs";
+import { SummaryStrip } from "./_components/summary-strip";
+import { BusinessTabs } from "./_components/business-tabs";
 
+/**
+ * The superadmin support console for one business.
+ *
+ * Everything the platform knows about a merchant, minus their customers'
+ * personal data. Identity and actions up top, the facts worth knowing on every
+ * tab in the strip below them, then one tab per surface.
+ */
 export default function BusinessDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -38,15 +41,9 @@ export default function BusinessDetailPage() {
   if (!business) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <BusinessHeader business={business} />
-      <div className="flex items-center">
-        <ActivityBadge businessId={business.id} />
-      </div>
-      <StatsRow businessId={business.id} />
-      <ChartsRow businessId={business.id} />
-      <PassLifecycleChart businessId={business.id} />
-      <OnboardingProgressCard business={business} />
+      <SummaryStrip business={business} />
       <BusinessTabs business={business} />
     </div>
   );
