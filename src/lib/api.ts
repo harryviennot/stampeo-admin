@@ -71,8 +71,10 @@ export interface Business {
   status: "active" | "suspended";
   subscription_tier: string;
   logo_url: string | null;
-  /** Language the merchant's passes and emails are written in ('fr' | 'en' | 'es'). */
+  /** Language the merchant's passes and emails are written in ('fr' | 'en' | 'es' | 'pl'). */
   primary_locale?: string | null;
+  /** IANA timezone. Drives broadcast scheduling and the daily rollups. */
+  timezone?: string | null;
   settings: {
     category?: string;
     description?: string;
@@ -123,6 +125,21 @@ export interface Business {
   has_active_design?: boolean;
   // Post-signup setup-wizard progress (settings.setup_progress)
   setup_progress?: SetupProgress | null;
+  // --- Detail endpoint only (GET /admin/businesses/{id}) -------------------
+  // Config-shaped context for the page header, so the summary strip renders
+  // without a fetch per fact. Absent on the LIST endpoint.
+  /** `tiered` exists in the DB CHECK with zero rows -- treat as an open set. */
+  loyalty_type?: "stamp" | "points" | "tiered" | null;
+  program_id?: string | null;
+  /** One-liner: "10 stamps -> Free coffee" / "1 pt/unit - 3 rewards from 100 pts". */
+  program_summary?: string | null;
+  designs_count?: number;
+  active_design_id?: string | null;
+  /** The REAL count of active locations, as opposed to `locations_count`
+   *  above, which is the onboarding-survey answer the owner typed at signup. */
+  locations_count_actual?: number;
+  members_count?: number;
+  certificate?: { id: string; identifier: string; status: string } | null;
   // Per-row aggregates returned by the enriched-businesses RPC
   scans_total?: number;
   scans_30d?: number;
@@ -1739,13 +1756,407 @@ export async function fetchUserDetail(
   return res.json();
 }
 
-export async function fetchBusinessMembers(
-  businessId: string
-): Promise<BusinessMember[]> {
+// ============================================================================
+// Business support console -- GET /admin/businesses/{id}/*
+// ============================================================================
+// Read-only views backing the tabs on the business detail page. Every one of
+// these reuses a merchant-side serializer on the backend, so what support sees
+// is what the merchant sees.
+
+/** One loyalty program, with what the plan actually applies to it. */
+export interface AdminProgram {
+  id: string;
+  name: string | null;
+  type: "stamp" | "points" | "tiered" | null;
+  is_active: boolean;
+  is_default: boolean;
+  reward_name: string | null;
+  reward_description: string | null;
+  config: Record<string, unknown>;
+  summary: string;
+  rewards: { id: string; name: string; threshold: number }[];
+  back_fields: Record<string, unknown>[];
+  translations: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+  type_changed_at: string | null;
+  limits: {
+    /** The gate clamps rather than refuses: a downgraded merchant keeps the
+     *  whole ladder stored and only the lowest `applied` rungs pay out. */
+    basket_boost_tiers: {
+      configured: number;
+      applied: number;
+      limit: number | null;
+      clamped: boolean;
+    };
+    earning_caps: { configured: boolean; allowed: boolean };
+    /** False on a lazy-init stub the merchant never opened. */
+    user_configured: boolean;
+  };
+}
+
+export interface AdminProgramConversion {
+  id: string;
+  from_type: string;
+  to_type: string;
+  rate: number | null;
+  policy: string | null;
+  status: string | null;
+  total_enrollments: number;
+  converted_count: number;
+  skipped_count: number;
+  banked_rewards_honored: number;
+  disabled_milestone_count: number;
+  created_at: string | null;
+  completed_at: string | null;
+}
+
+export interface AdminPromotionalEvent {
+  id: string;
+  name: string | null;
+  description: string | null;
+  type: string | null;
+  config: Record<string, unknown>;
+  starts_at: string | null;
+  ends_at: string | null;
+  is_active: boolean;
+  program_id: string | null;
+  announcement_title: string | null;
+  announcement_body: string | null;
+}
+
+export interface AdminProgramResponse {
+  tier: string;
+  default_program_id: string | null;
+  items: AdminProgram[];
+  events: AdminPromotionalEvent[];
+  conversions: AdminProgramConversion[];
+}
+
+/** A design plus the reason it could not be rendered, if any. One broken
+ *  legacy row must not blank the tab. */
+export type AdminDesign = CardDesign & { render_error?: string | null };
+
+export interface AdminDesignSchedule {
+  id: string;
+  design_id: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  is_revert: boolean;
+  revert_to_design_id: string | null;
+  status: string | null;
+}
+
+export interface AdminDesignsResponse {
+  items: AdminDesign[];
+  active_design_id: string | null;
+  schedules: AdminDesignSchedule[];
+}
+
+export interface AdminLocationStats {
+  location_id: string;
+  location_name: string;
+  range: string;
+  total_transactions: number;
+  scans_added: number;
+  rewards_redeemed: number;
+  scans_voided: number;
+  unique_customers: number;
+  enrolled_here_total: number;
+  last_activity_at: string | null;
+}
+
+export interface AdminLocation {
+  id: string;
+  name: string;
+  slug: string | null;
+  is_primary: boolean;
+  address: string | null;
+  address_components: Record<string, unknown>;
+  latitude: number | null;
+  longitude: number | null;
+  radius_meters: number | null;
+  wallet_message: Record<string, string> | null;
+  created_at: string | null;
+  updated_at: string | null;
+  stats: AdminLocationStats | null;
+  /** Scanners only. Owners and admins reach every location by design, so an
+   *  empty list here does NOT mean nobody can scan there. */
+  assigned_members: {
+    membership_id: string | null;
+    user_id: string | null;
+    name: string | null;
+    email: string | null;
+    role: string | null;
+  }[];
+}
+
+export interface AdminLocationsResponse {
+  range: string;
+  items: AdminLocation[];
+}
+
+export interface AdminTeamMember {
+  id: string;
+  user_id: string;
+  role: string;
+  is_paused: boolean;
+  created_at: string | null;
+  last_active_at: string | null;
+  scans_count: number;
+  platforms_used: string[];
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  locale: string | null;
+  is_reseller: boolean;
+}
+
+export interface AdminInvitation {
+  id: string;
+  email: string | null;
+  name: string | null;
+  role: string | null;
+  status: string | null;
+  invited_by: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+}
+
+export interface AdminTeamResponse {
+  items: AdminTeamMember[];
+  invitations: AdminInvitation[];
+  counts: Record<string, number>;
+  limits: { max_members: number | null; employee_tracking: boolean };
+}
+
+export interface AdminNotificationTemplate {
+  trigger: string;
+  template_id: string | null;
+  body: Record<string, string>;
+  default_body: Record<string, string>;
+  is_enabled: boolean;
+  is_editable: boolean;
+  is_customized: boolean;
+  is_using_default?: boolean;
+  /** Languages the merchant actually wrote. Any supported locale missing here
+   *  falls back to Stampeo's default wording for that customer. */
+  authored_locales?: string[];
+  trigger_config?: Record<string, unknown>;
+}
+
+export interface AdminMilestone {
+  id: string;
+  stamp_equals: number | null;
+  value: number | null;
+  metric: string | null;
+  body: Record<string, string>;
+  is_enabled: boolean;
+}
+
+export interface AdminNotificationsResponse {
+  program_id: string | null;
+  tier: string;
+  program_type: string | null;
+  items: AdminNotificationTemplate[];
+  milestones: {
+    items: AdminMilestone[];
+    limit: number | null;
+    program_id?: string | null;
+    tier?: string;
+  };
+}
+
+export interface AdminBroadcast {
+  id: string;
+  title: string | null;
+  body: string | null;
+  translations: Record<string, { title?: string; body?: string }>;
+  target_filter: Record<string, unknown>;
+  status: string;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  total_recipients: number;
+  /** Recipients with at least one live push channel at send time. The gap
+   *  against total_recipients is behind most "my broadcast didn't work". */
+  reachable_recipients: number;
+  delivered: number;
+  failed: number;
+  google_throttled: number;
+  apple_delivered: number;
+  apple_failed: number;
+  google_delivered: number;
+  google_failed: number;
+  google_not_installed: number;
+  skipped_no_push: number;
+  timezone: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AdminBroadcastsResponse extends Paginated<AdminBroadcast> {
+  limits: {
+    allowed: boolean;
+    monthly_limit: number | null;
+    scheduling: boolean;
+    segmentation: boolean;
+  };
+}
+
+/**
+ * One transaction, anonymised. There is deliberately no customer_id: the
+ * backend exposes only `customer_ref`, the first 8 characters, which is enough
+ * to spot a repeat visitor and not enough to identify one. `metadata` is
+ * key-filtered server-side.
+ */
+export interface AdminActivityItem {
+  id: string;
+  type: string;
+  source: string | null;
+  delta: number | null;
+  value_before: number | null;
+  value_after: number | null;
+  program_type: string | null;
+  amount: number | null;
+  created_at: string;
+  location_id: string | null;
+  employee_id: string | null;
+  employee_name: string | null;
+  customer_ref: string | null;
+  voided_transaction_id: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export type AdminActivityResponse = Paginated<AdminActivityItem>;
+
+export interface AdminCommsResponse {
+  marketing: {
+    email_key: string | null;
+    track: string | null;
+    period: string | null;
+    sent_at: string | null;
+  }[];
+  reengagement: { step: string | null; sent_at: string | null }[];
+  events: {
+    campaign: string | null;
+    event_type: string | null;
+    clicked_url: string | null;
+    occurred_at: string | null;
+  }[];
+  outreach: {
+    id: string;
+    kind: string | null;
+    track: string | null;
+    channel: string | null;
+    status: string | null;
+    variant: string | null;
+    automation_paused_at: string | null;
+    last_inbound_at: string | null;
+    last_outbound_at: string | null;
+    created_at: string | null;
+    messages: {
+      direction: string;
+      channel: string | null;
+      step: string | null;
+      template_key: string | null;
+      variant: string | null;
+      locale: string | null;
+      body: string | null;
+      status: string | null;
+      error_code: string | null;
+      created_at: string | null;
+    }[];
+  }[];
+  preferences: Record<string, unknown> | null;
+}
+
+export type AdminHealthLevel = "ok" | "warn" | "error";
+
+export interface AdminHealthCheck {
+  key: string;
+  level: AdminHealthLevel;
+  label: string;
+  detail: string;
+}
+
+export interface AdminHealthResponse {
+  items: AdminHealthCheck[];
+}
+
+async function adminBusinessGet<T>(
+  businessId: string,
+  path: string,
+  search = ""
+): Promise<T> {
   const headers = await getAuthHeaders();
   const res = await fetch(
-    `${API_BASE_URL}/admin/businesses/${businessId}/members`,
+    `${API_BASE_URL}/admin/businesses/${businessId}/${path}${search}`,
     { headers }
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export function fetchBusinessProgram(businessId: string) {
+  return adminBusinessGet<AdminProgramResponse>(businessId, "program");
+}
+
+export function fetchBusinessDesigns(businessId: string) {
+  return adminBusinessGet<AdminDesignsResponse>(businessId, "designs");
+}
+
+export function fetchBusinessLocations(businessId: string, range = "30d") {
+  return adminBusinessGet<AdminLocationsResponse>(
+    businessId,
+    "locations",
+    `?range=${encodeURIComponent(range)}`
+  );
+}
+
+export function fetchBusinessTeam(businessId: string) {
+  return adminBusinessGet<AdminTeamResponse>(businessId, "team");
+}
+
+export function fetchBusinessNotifications(businessId: string) {
+  return adminBusinessGet<AdminNotificationsResponse>(
+    businessId,
+    "notifications"
+  );
+}
+
+export function fetchBusinessBroadcasts(businessId: string, limit = 25, offset = 0) {
+  return adminBusinessGet<AdminBroadcastsResponse>(
+    businessId,
+    "broadcasts",
+    `?limit=${limit}&offset=${offset}`
+  );
+}
+
+export function fetchBusinessActivity(businessId: string, limit = 50, offset = 0) {
+  return adminBusinessGet<AdminActivityResponse>(
+    businessId,
+    "activity",
+    `?limit=${limit}&offset=${offset}`
+  );
+}
+
+export function fetchBusinessComms(businessId: string) {
+  return adminBusinessGet<AdminCommsResponse>(businessId, "comms");
+}
+
+export function fetchBusinessHealth(businessId: string) {
+  return adminBusinessGet<AdminHealthResponse>(businessId, "health");
+}
+
+/** The one write: rebuild the active design's strips and re-push every pass. */
+export async function rebuildCardAssets(
+  businessId: string
+): Promise<{ queued: boolean; design_id: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE_URL}/admin/businesses/${businessId}/rebuild-card-assets`,
+    { method: "POST", headers }
   );
   if (!res.ok) throw new Error(await res.text());
   return res.json();

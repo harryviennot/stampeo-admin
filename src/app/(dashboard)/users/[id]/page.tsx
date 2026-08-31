@@ -12,6 +12,7 @@ import {
   Building2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { InfoRow } from "@/components/info-row";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,15 +58,6 @@ function RoleBadge({ role }: { role: string }) {
     <Badge variant="outline" className={styles[role] || ""}>
       {role}
     </Badge>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
-      <div className="text-sm font-medium">{value}</div>
-    </div>
   );
 }
 
