@@ -8,7 +8,11 @@
  */
 import { describe, expect, test } from "bun:test";
 import { buildPreviewValues } from "./design-preview";
-import { renderSamplePreview, resolveFieldValue } from "./template-variables";
+import {
+  renderSamplePreview,
+  resolveFieldValue,
+  SUPPORTED_LOCALES,
+} from "./template-variables";
 import type { AdminCardDesignItem } from "@/lib/api";
 
 function item(overrides: {
@@ -65,6 +69,31 @@ describe("locale", () => {
     expect(buildPreviewValues(item({ business: { primary_locale: undefined } })).locale).toBe("en");
     expect(buildPreviewValues(item({ business: { primary_locale: "de" } })).locale).toBe("en");
   });
+
+  // The allowlist behind that fallback is a runtime array, so a language the
+  // app supports but forgot to list is NOT a type error — the business just
+  // silently previews in English. This is the guard for the next language.
+  test("accepts every supported locale, not a hardcoded subset", () => {
+    for (const supported of SUPPORTED_LOCALES) {
+      expect(
+        buildPreviewValues(item({ business: { primary_locale: supported } })).locale
+      ).toBe(supported);
+    }
+  });
+
+  test("fills every {{variable}} in every supported locale", () => {
+    for (const supported of SUPPORTED_LOCALES) {
+      const { values, locale } = buildPreviewValues(
+        item({ business: { primary_locale: supported, name: "   " } })
+      );
+      const rendered = renderSamplePreview(
+        "{{business_name}} {{stamps_left}} {{customer_first_name}} {{customer_birthday}}",
+        values,
+        locale
+      );
+      expect(rendered).not.toContain("{{");
+    }
+  });
 });
 
 describe("real business data beats the sample table", () => {
@@ -114,6 +143,13 @@ describe("sample cardholder name", () => {
     const { values } = buildPreviewValues(item({ business: { primary_locale: "es" } }));
     expect(
       ["Lucía", "Mateo", "Sofía", "Diego", "Valentina", "Hugo", "Martina", "Pablo"]
+    ).toContain(values.customer_first_name!);
+  });
+
+  test("is Polish for a Polish business", () => {
+    const { values } = buildPreviewValues(item({ business: { primary_locale: "pl" } }));
+    expect(
+      ["Zofia", "Jakub", "Julia", "Antoni", "Maja", "Szymon", "Lena", "Filip"]
     ).toContain(values.customer_first_name!);
   });
 });

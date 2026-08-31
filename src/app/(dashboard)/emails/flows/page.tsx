@@ -4,17 +4,19 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
+  EMAIL_PREVIEW_LOCALES,
   fetchEmailFlows,
   fetchEmailPreviewHtml,
   type EmailFlow,
   type EmailFlowStep,
+  type EmailPreviewLocale,
 } from "@/lib/api";
 import { adminKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mail, Globe, ArrowRight, Clock, Zap, CalendarClock } from "lucide-react";
 
-type Locale = "fr" | "en" | "es";
+type Locale = EmailPreviewLocale;
 
 const TRIGGER_META: Record<
   string,
@@ -89,9 +91,14 @@ function EmailFlowsInner() {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
             <Globe className="ml-2 h-4 w-4 text-muted-foreground" />
-            <LocaleButton label="FR" active={locale === "fr"} onClick={() => setLocale("fr")} />
-            <LocaleButton label="EN" active={locale === "en"} onClick={() => setLocale("en")} />
-            <LocaleButton label="ES" active={locale === "es"} onClick={() => setLocale("es")} />
+            {EMAIL_PREVIEW_LOCALES.map((code) => (
+              <LocaleButton
+                key={code}
+                label={code.toUpperCase()}
+                active={locale === code}
+                onClick={() => setLocale(code)}
+              />
+            ))}
           </div>
         </div>
       </header>

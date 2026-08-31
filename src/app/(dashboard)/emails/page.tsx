@@ -5,8 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
+  EMAIL_PREVIEW_LOCALES,
   fetchEmailPreviewHtml,
   fetchEmailTemplates,
+  type EmailPreviewLocale,
   type EmailTemplateRef,
 } from "@/lib/api";
 import { adminKeys } from "@/lib/query-keys";
@@ -14,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Mail, Globe } from "lucide-react";
 
-type Locale = "fr" | "en" | "es";
+type Locale = EmailPreviewLocale;
 
 const CATEGORY_ORDER = ["transactional", "lifecycle", "campaigns"] as const;
 const CATEGORY_LABELS: Record<string, string> = {
@@ -52,8 +54,10 @@ function EmailsPageInner() {
 
   const templateParam = searchParams.get("template");
   const localeParam = (searchParams.get("locale") as Locale | null) ?? "fr";
+  // Checked against the list, not a ternary chain: an unlisted `?locale=`
+  // has to land on French rather than be trusted through as a Locale.
   const [locale, setLocale] = useState<Locale>(
-    localeParam === "en" ? "en" : localeParam === "es" ? "es" : "fr"
+    EMAIL_PREVIEW_LOCALES.includes(localeParam) ? localeParam : "fr"
   );
 
   // Variant knobs for the parameterized previews (digest tone / insight /
@@ -164,21 +168,14 @@ function EmailsPageInner() {
         </div>
         <div className="flex items-center gap-1 rounded-md border bg-background p-0.5">
           <Globe className="ml-2 h-4 w-4 text-muted-foreground" />
-          <LocaleButton
-            label="FR"
-            active={locale === "fr"}
-            onClick={() => changeLocale("fr")}
-          />
-          <LocaleButton
-            label="EN"
-            active={locale === "en"}
-            onClick={() => changeLocale("en")}
-          />
-          <LocaleButton
-            label="ES"
-            active={locale === "es"}
-            onClick={() => changeLocale("es")}
-          />
+          {EMAIL_PREVIEW_LOCALES.map((code) => (
+            <LocaleButton
+              key={code}
+              label={code.toUpperCase()}
+              active={locale === code}
+              onClick={() => changeLocale(code)}
+            />
+          ))}
         </div>
       </header>
 
