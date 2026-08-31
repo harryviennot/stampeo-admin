@@ -4,6 +4,7 @@ import type {
   BucketRangeParams,
   BusinessListParams,
   CustomerSignupsByBizParams,
+  EmailPreviewLocale,
   RangeParams,
   TimeseriesParams,
   UserListParams,
@@ -99,7 +100,7 @@ export const adminKeys = {
     preview: (
       category: string,
       name: string,
-      locale: "fr" | "en" | "es",
+      locale: EmailPreviewLocale,
       variant?: string
     ) => ["emails", "preview", category, name, locale, variant ?? ""] as const,
     flows: ["emails", "flows"] as const,

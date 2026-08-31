@@ -28,13 +28,17 @@ import {
   customFieldSampleValues,
   pickSampleName,
   pointsVariableValues,
+  SUPPORTED_LOCALES,
   type CustomFieldVariable,
   type Locale,
 } from "@/lib/template-variables";
 import { defaultPointsSampleBalance } from "@/lib/card-utils";
 import type { CardDesign, RewardTier } from "@/types/design";
 
-const LOCALES: Locale[] = ["en", "fr", "es"];
+// Derived from the supported-locale list, never re-typed: a hardcoded copy is
+// not a type error when a language is added, it just silently previews that
+// business's card in English.
+const LOCALES: readonly Locale[] = SUPPORTED_LOCALES;
 
 function toLocale(value: string | null | undefined): Locale {
   return LOCALES.includes(value as Locale) ? (value as Locale) : "en";

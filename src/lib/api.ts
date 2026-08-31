@@ -1893,13 +1893,19 @@ export async function fetchEmailTemplates(): Promise<EmailTemplateRef[]> {
   return res.json();
 }
 
+/** The languages the email templates are authored in. One list so the preview
+ *  switcher, the query key and the fetch all widen together when a language is
+ *  added — a hardcoded copy just silently drops the new one. */
+export const EMAIL_PREVIEW_LOCALES = ["fr", "en", "es", "pl"] as const;
+export type EmailPreviewLocale = (typeof EMAIL_PREVIEW_LOCALES)[number];
+
 /** Returns raw rendered HTML — write it into an iframe via `srcdoc`.
  * `extraParams` carries the parameterized-preview knobs (digest
  * health/insight/action, nurture ns). */
 export async function fetchEmailPreviewHtml(
   category: string,
   name: string,
-  locale: "fr" | "en" | "es",
+  locale: EmailPreviewLocale,
   extraParams?: Record<string, string>
 ): Promise<string> {
   const headers = await getAuthHeaders();
@@ -1959,6 +1965,7 @@ export interface ChangelogArea {
   label_fr: string;
   label_en: string;
   label_es: string | null;
+  label_pl: string | null;
   color: string;
   sort_order: number;
 }
@@ -1972,9 +1979,11 @@ export interface ChangelogItem {
   title_fr: string;
   title_en: string | null;
   title_es: string | null;
+  title_pl: string | null;
   body_fr: string | null;
   body_en: string | null;
   body_es: string | null;
+  body_pl: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -1987,12 +1996,15 @@ export interface ChangelogRelease {
   title_fr: string | null;
   title_en: string | null;
   title_es: string | null;
+  title_pl: string | null;
   body_fr: string | null;
   body_en: string | null;
   body_es: string | null;
+  body_pl: string | null;
   image_url_fr: string | null;
   image_url_en: string | null;
   image_url_es: string | null;
+  image_url_pl: string | null;
   period: string;
   published_at: string | null;
   created_at: string;
@@ -2013,9 +2025,11 @@ export interface ChangelogItemInput {
   title_fr: string;
   title_en?: string | null;
   title_es?: string | null;
+  title_pl?: string | null;
   body_fr?: string | null;
   body_en?: string | null;
   body_es?: string | null;
+  body_pl?: string | null;
   sort_order?: number;
 }
 
@@ -2023,12 +2037,15 @@ export interface ChangelogReleaseInput {
   title_fr?: string | null;
   title_en?: string | null;
   title_es?: string | null;
+  title_pl?: string | null;
   body_fr?: string | null;
   body_en?: string | null;
   body_es?: string | null;
+  body_pl?: string | null;
   image_url_fr?: string | null;
   image_url_en?: string | null;
   image_url_es?: string | null;
+  image_url_pl?: string | null;
 }
 
 export async function fetchChangelogDraft(): Promise<ChangelogDraftResponse> {
