@@ -188,7 +188,7 @@ function LeakageCard({
                 <p className="mt-1 text-muted-foreground">
                   Gross is the combined price of all active subscriptions; Net is
                   what&apos;s actually collected after coupons and comps (e.g. a
-                  100%-off account collects €0). The gap is the discount given
+                  100%-off account collects nothing). The gap is the discount given
                   away each month.
                 </p>
                 <p className="mt-1 text-muted-foreground">
@@ -283,7 +283,7 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. Amounts are shown in each business's own billing currency."
+          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. This figure is the EUR book only. Amounts in other currencies are reported separately and never converted: there is no exchange rate here, and summing dollars into a euro total would report revenue nobody can reconcile against Stripe."
           footer={
             <>
               {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) && (
