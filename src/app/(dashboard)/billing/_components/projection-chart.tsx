@@ -118,8 +118,8 @@ export function ProjectionChart() {
           </p>
           <p className="mt-1 text-muted-foreground">
             <strong>New business is priced at public rates.</strong> Every
-            current payer is a grandfathered founding partner on €10/€20, but
-            new signups pay €20/€40, so the run rate is repriced forward rather
+            current payer is a grandfathered founding partner on the founding rate, but
+            new signups pay public rates, so the run rate is repriced forward rather
             than extrapolated
             {a?.conversion_haircut !== undefined
               ? ` — then discounted ${Math.round(

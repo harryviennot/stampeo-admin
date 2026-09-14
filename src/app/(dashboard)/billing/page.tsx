@@ -283,7 +283,7 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a €192/yr account contributes €16 rather than its upfront charge."
+          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. Amounts are shown in each business's own billing currency."
           footer={
             <>
               {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) && (
@@ -339,7 +339,7 @@ export default function BillingPage() {
           loading={isPending}
           icon={<Hourglass className="h-4 w-4" />}
           badgeClass="bg-violet-100 text-violet-700"
-          info="Net MRR sitting in trials that have a card on file, if they all convert. Each trial is priced at its own plan, so founding-era trials count at €10/€20 and post-4-Aug ones at €20/€40 — watch the public share grow. No-card trials are excluded (no intent to pay)."
+          info="Net MRR sitting in trials that have a card on file, if they all convert. Each trial is priced at its own plan and its own currency, so founding-era trials count at the founding rate and post-4-Aug ones at public rates — watch the public share grow. No-card trials are excluded (no intent to pay)."
           footer={
             <>
               {`${data?.trial_pipeline_count ?? 0} with card`}

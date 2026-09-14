@@ -150,7 +150,7 @@ export function PricingCohortComparison() {
                       standard.matured ?? 0
                     } past their trial`
                   : ""}
-                . With a 30-day trial plus grace, the first real conversions
+                . With a 30-day trial plus grace (14 days in the US since STA-275), the first real conversions
                 land about a month after the switch, so conversion here reads
                 &ldquo;—&rdquo; rather than 0%. Deltas stay hidden until then.
               </span>
