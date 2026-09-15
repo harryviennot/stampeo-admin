@@ -4,23 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, CalendarClock, Coins, TrendingUp } from "lucide-react";
 import { ChartCard } from "@/components/chart-card";
 import { useRevenueSnapshot } from "@/hooks/use-stats";
-
-function formatAmount(
-  amountMinor: number,
-  currency: string,
-  opts: { minorUnit?: boolean } = {}
-): string {
-  const value = amountMinor / 100;
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      maximumFractionDigits: opts.minorUnit ? 2 : 0,
-    }).format(value);
-  } catch {
-    return `${value.toFixed(opts.minorUnit ? 2 : 0)} ${currency.toUpperCase()}`;
-  }
-}
+import { formatAmount, otherCurrencyText } from "@/lib/money";
 
 function monthLabel(iso: string): string {
   try {
@@ -40,7 +24,15 @@ function tierLabel(tier: string): string {
 export function RevenueCard() {
   const { data, isPending } = useRevenueSnapshot();
 
+  // The PLATFORM currency. Every headline below is that currency's slice of
+  // the book, and `Other` renders whatever the slice leaves out — the figures
+  // were in the payload and on screen nowhere, so a dollar book was invisible.
   const currency = data?.currency ?? "eur";
+  const Other = ({ split }: { split?: Record<string, number> }) => {
+    const text = otherCurrencyText(split, currency, { withCode: true });
+    if (!text) return null;
+    return <span className="ml-1 text-muted-foreground">· {text}</span>;
+  };
   const thisMonth = data ? monthLabel(data.this_month_start) : "";
   const lastMonth = data ? monthLabel(data.last_month_start) : "";
   const nextMonth = data ? monthLabel(data.next_month_start) : "";
@@ -87,6 +79,9 @@ export function RevenueCard() {
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {formatAmount(data.active_mrr, currency)}
               </p>
+              <p className="text-xs">
+                <Other split={data.net_mrr_by_currency} />
+              </p>
               <p className="text-xs text-muted-foreground">
                 from {data.active_count}{" "}
                 {data.active_count === 1
@@ -105,6 +100,7 @@ export function RevenueCard() {
                 <p className="text-xs text-muted-foreground">
                   net of {formatAmount(data.total_discount_amount ?? 0, currency)}/mo
                   discounts
+                  <Other split={data.total_discount_amount_by_currency} />
                   {(data.fully_comped_count ?? 0) > 0 &&
                     ` · ${data.fully_comped_count} fully comped`}
                 </p>
@@ -118,12 +114,16 @@ export function RevenueCard() {
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {formatAmount(data.next_month_mrr, currency)}
               </p>
+              <p className="text-xs">
+                <Other split={data.next_month_by_currency} />
+              </p>
               <p className="text-xs text-muted-foreground">
                 {data.converting_trial_count === 0 ? (
                   <>no trials converting next month</>
                 ) : (
                   <>
-                    + {formatAmount(data.converting_trial_mrr, currency)} from{" "}
+                    + {formatAmount(data.converting_trial_mrr, currency)}
+                    <Other split={data.converting_trial_by_currency} /> from{" "}
                     {data.converting_trial_count}{" "}
                     {data.converting_trial_count === 1
                       ? "trial converting"
@@ -140,11 +140,21 @@ export function RevenueCard() {
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {formatAmount(data.last_month_revenue, currency)}
               </p>
+              <p className="text-xs">
+                <Other split={data.last_month_by_currency} />
+              </p>
               <p className="text-xs text-muted-foreground">
+                {/* The count describes the figure above it: both are the
+                    platform-currency slice. It used to count every currency's
+                    invoices under a euro-only total. */}
                 {data.last_month_invoice_count}{" "}
                 {data.last_month_invoice_count === 1
                   ? "paid invoice"
                   : "paid invoices"}
+                {Object.entries(data.last_month_invoice_count_by_currency ?? {})
+                  .filter(([code, n]) => code !== currency && n)
+                  .map(([code, n]) => ` · ${n} in ${code.toUpperCase()}`)
+                  .join("")}
               </p>
             </div>
           </div>
@@ -173,11 +183,21 @@ export function RevenueCard() {
                   <tbody>
                     {data.active_breakdown.map((row, i) => (
                       <tr
-                        key={`${row.tier}-${row.is_founding}-${i}`}
+                        key={`${row.tier}-${row.is_founding}-${row.currency ?? i}`}
                         className="border-b last:border-0"
                       >
                         <td className="px-2 py-1.5">
                           {tierLabel(row.tier)}
+                          {/* The row's OWN currency, never the page's. A EUR
+                              Pro and a USD Pro are two rows, and rendering the
+                              second with `currency` printed $119 as "EUR 119".
+                              Shown as a chip only when it is not the platform
+                              currency, so an all-euro book looks unchanged. */}
+                          {row.currency && row.currency !== currency && (
+                            <span className="ml-1.5 inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-1.5 py-px text-[10px] uppercase text-sky-700">
+                              {row.currency}
+                            </span>
+                          )}
                           {row.is_founding && (
                             <span className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-1.5 py-px text-[10px] text-violet-700">
                               founding
@@ -188,12 +208,12 @@ export function RevenueCard() {
                           {row.count}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
-                          {formatAmount(row.unit_amount, currency, {
+                          {formatAmount(row.unit_amount, row.currency ?? currency, {
                             minorUnit: true,
                           })}
                         </td>
                         <td className="px-2 py-1.5 text-right font-medium tabular-nums">
-                          {formatAmount(row.subtotal, currency)}
+                          {formatAmount(row.subtotal, row.currency ?? currency)}
                         </td>
                       </tr>
                     ))}

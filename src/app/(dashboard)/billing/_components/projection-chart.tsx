@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { useBillingProjections } from "@/hooks/use-stats";
 import { formatAmount, formatAmountCompact } from "./format";
+import { excludedNote } from "@/lib/money";
 
 const config: ChartConfig = {
   actual: { label: "Actual", color: "var(--foreground)" },
@@ -300,6 +301,15 @@ export function ProjectionChart() {
                 )
               )}
             </div>
+          )}
+          {/* This panel is the platform-currency book. Saying so is not
+              optional: a scoped figure presented as the whole book is the same
+              lie as a mixed-currency total, and the API published this count
+              while nothing rendered it. */}
+          {excludedNote(data?.excluded_non_platform_count, currency) && (
+            <p className="text-[11px] text-muted-foreground">
+              {excludedNote(data?.excluded_non_platform_count, currency)}
+            </p>
           )}
         </>
       )}

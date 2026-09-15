@@ -26,6 +26,7 @@ import { UpcomingPaymentsTable } from "./_components/upcoming-payments-table";
 import { AtRiskTable } from "./_components/at-risk-table";
 import { ConversionCohortTable } from "./_components/conversion-cohort-table";
 import { PricingCohortComparison } from "./_components/pricing-cohort-comparison";
+import { otherCurrencyText } from "@/lib/money";
 import { formatAmount } from "./_components/format";
 
 function KpiCard({
@@ -174,6 +175,13 @@ function LeakageCard({
   const gross = data?.gross_mrr ?? 0;
   const net = data?.net_mrr ?? 0;
 
+  /** Whatever the platform-currency slice above leaves out. */
+  const Other = ({ split }: { split?: Record<string, number> }) => {
+    const text = otherCurrencyText(split, currency, { withCode: true });
+    if (!text) return null;
+    return <p className="text-xs text-muted-foreground">{text}</p>;
+  };
+
   const waivedPct = gross > 0 ? Math.round(((gross - net) / gross) * 100) : 0;
 
   return (
@@ -210,23 +218,35 @@ function LeakageCard({
         ) : (
           <>
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {/* All three figures are the platform-currency slice, and the
+                  card's own heading calls them "combined". Each now carries
+                  what the slice leaves out, or the caption is simply false on
+                  a mixed book. */}
               <div>
                 <p className="text-xs text-muted-foreground">Gross MRR</p>
                 <p className="text-lg font-bold tabular-nums text-muted-foreground">
                   {formatAmount(gross, currency)}
                 </p>
+                <Other split={data?.gross_mrr_by_currency} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Net MRR</p>
                 <p className="text-lg font-bold tabular-nums">
                   {formatAmount(net, currency)}
                 </p>
+                <Other split={data?.net_mrr_by_currency} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Waived / mo</p>
                 <p className="text-lg font-bold tabular-nums text-amber-600">
                   {formatAmount((data?.discount_leakage?.monthly_waived) ?? 0, currency)}
                 </p>
+                <Other
+                  split={
+                    data?.discount_leakage?.monthly_waived_by_currency ??
+                    data?.waived_by_currency
+                  }
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fully comped</p>
@@ -269,15 +289,9 @@ export default function BillingPage() {
   const otherCurrencies = (
     split: Record<string, number> | undefined,
   ): React.ReactNode => {
-    const rest = Object.entries(split ?? {}).filter(
-      ([code, amount]) => code !== currency && amount,
-    );
-    if (!rest.length) return null;
-    return (
-      <span className="text-muted-foreground">
-        {rest.map(([code, amount]) => `${formatAmount(amount, code)}`).join(" · ")}
-      </span>
-    );
+    const text = otherCurrencyText(split, currency);
+    if (!text) return null;
+    return <span className="text-muted-foreground">{text}</span>;
   };
 
   return (
@@ -385,11 +399,17 @@ export default function BillingPage() {
               {otherCurrencies(data?.trial_pipeline_mrr_by_currency)}
               {otherCurrencies(data?.trial_pipeline_mrr_by_currency) ? " · " : ""}
               {`${data?.trial_pipeline_count ?? 0} with card`}
+              {/* The founding/public halves are the platform-currency slice,
+                  so their COUNTS are too. This read "1 at public rates (€0)"
+                  while the one public trial was the $49 — a count and the
+                  amount beside it have to describe the same rows. */}
               {(data?.trial_pipeline_public_count ?? 0) > 0 &&
                 ` · ${data?.trial_pipeline_public_count} at public rates (${formatAmount(
                   data?.trial_pipeline_public_mrr,
                   currency
                 )})`}
+              {(data?.trial_pipeline_non_platform_count ?? 0) > 0 &&
+                ` · ${data?.trial_pipeline_non_platform_count} in other currencies`}
               {(data?.no_card_trial_count ?? 0) > 0 &&
                 ` · ${data?.no_card_trial_count} no card (excluded)`}
             </>
@@ -414,6 +434,18 @@ export default function BillingPage() {
                 {`${formatAmount(data?.trial_pipeline_mrr, currency)} pipeline × ${Math.round(
                   data.trial_conversion_rate * 100
                 )}% conversion`}
+                {/* Built on the euro pipeline, so it read "expected €0" beside
+                    a live $49 trial. The rate applied is the platform book's —
+                    there is no US conversion history to measure one from yet. */}
+                {otherCurrencyText(
+                  data?.expected_trial_revenue_by_currency,
+                  currency
+                )
+                  ? ` · ${otherCurrencyText(
+                      data?.expected_trial_revenue_by_currency,
+                      currency
+                    )} expected`
+                  : ""}
               </>
             )
           }

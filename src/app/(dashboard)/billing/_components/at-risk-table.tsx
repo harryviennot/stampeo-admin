@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { useAtRiskPayments } from "@/hooks/use-stats";
 import type { AtRiskBucket } from "@/lib/api";
 import { formatAmount } from "./format";
+import { otherCurrencyText } from "@/lib/money";
 
 const BUCKET_META: Record<
   AtRiskBucket["bucket"],
@@ -86,6 +87,14 @@ export function AtRiskTable() {
                   </span>
                   <span className="text-sm font-semibold tabular-nums">
                     {formatAmount(b.amount_at_risk, currency)}
+                    {/* The bucket's COUNT spans currencies (the rows below each
+                        render their own), so its amount has to as well or the
+                        two describe different sets of rows. */}
+                    {otherCurrencyText(b.amount_at_risk_by_currency, currency) && (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        + {otherCurrencyText(b.amount_at_risk_by_currency, currency)}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <ul className="divide-y rounded-md border">

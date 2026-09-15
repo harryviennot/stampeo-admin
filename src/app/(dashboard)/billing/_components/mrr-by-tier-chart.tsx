@@ -38,6 +38,9 @@ export function MrrByTierChart({
       count: r.count,
       gross_subtotal: r.gross_subtotal,
       net_subtotal: r.net_subtotal,
+      // Carried onto the datum so the TOOLTIP can format in it too. The label
+      // already said ·USD while hovering the bar printed "EUR 119".
+      currency: r.currency ?? currency,
     })) ?? [];
 
   return (
@@ -91,11 +94,15 @@ export function MrrByTierChart({
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  formatter={(value, name) => (
+                  formatter={(value, name, item) => (
                     <span className="flex w-full items-center justify-between gap-3">
                       <span className="text-muted-foreground">{name}</span>
                       <span className="font-medium tabular-nums">
-                        {formatAmount(value as number, currency)}
+                        {formatAmount(
+                          value as number,
+                          (item?.payload as { currency?: string })?.currency ??
+                            currency
+                        )}
                       </span>
                     </span>
                   )}

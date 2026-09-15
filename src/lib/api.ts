@@ -785,6 +785,10 @@ export interface RevenueTrialBreakdownRow {
   /** Discount-aware additions (subtotal is now an alias of net_subtotal). */
   gross_subtotal?: number;
   net_subtotal?: number;
+  /** THIS row's currency. A EUR Pro and a USD Pro are two rows; rendering the
+   *  second with the page currency printed \$119 as "EUR 119". */
+  currency?: string;
+  yearly_count?: number;
 }
 
 export interface MissingPriceBusiness {
@@ -816,7 +820,19 @@ export interface RevenueSnapshot {
   converting_trial_mrr: number;
   next_month_mrr: number;
   last_month_revenue: number;
+  /** Platform-currency invoices only — the count describes the figure it is
+   *  printed under. `last_month_invoice_count_by_currency` has the rest. */
   last_month_invoice_count: number;
+  last_month_invoice_count_by_currency?: Record<string, number>;
+  /** Per currency, unconverted. Every scalar above is the platform-currency
+   *  slice of these, never a total. */
+  net_mrr_by_currency?: Record<string, number>;
+  gross_mrr_by_currency?: Record<string, number>;
+  next_month_by_currency?: Record<string, number>;
+  last_month_by_currency?: Record<string, number>;
+  converting_trial_by_currency?: Record<string, number>;
+  total_discount_amount_by_currency?: Record<string, number>;
+  mrr_currency?: string;
   stripe_error: string | null;
 }
 
@@ -901,6 +917,8 @@ export interface BillingOverview {
   annual_cash_collected?: number;
   discount_leakage: {
     monthly_waived: number;
+    /** The card is captioned "combined" and showed euros only. */
+    monthly_waived_by_currency?: Record<string, number>;
     discounted_count: number;
     fully_comped_count: number;
   };
@@ -916,14 +934,22 @@ export interface BillingOverview {
   trial_pipeline_mrr_by_currency?: Record<string, number>;
   gross_mrr_by_currency?: Record<string, number>;
   trial_mrr_by_currency?: Record<string, number>;
+  waived_by_currency?: Record<string, number>;
+  expected_trial_revenue_by_currency?: Record<string, number>;
+  /** Trials the founding/public halves cannot describe, because neither half
+   *  is in their currency. */
+  trial_pipeline_non_platform_count?: number;
   stripe_error: string | null;
 }
 
 export interface RevenueTrendBucket {
   month: string; // "YYYY-MM"
+  /** Platform currency only — a chart axis cannot carry two currencies. */
   collected: number;
   invoice_count: number;
   net_mrr: number | null;
+  /** Present on every bucket, including months with no invoices at all. */
+  collected_by_currency?: Record<string, number>;
 }
 
 export interface RevenueTrend {
@@ -970,6 +996,7 @@ export interface AtRiskBucket {
   bucket: "past_due" | "grace" | "cancel_at_period_end";
   count: number;
   amount_at_risk: number;
+  amount_at_risk_by_currency?: Record<string, number>;
   rows: AtRiskRow[];
 }
 
@@ -995,6 +1022,13 @@ export interface BillingMrrHistoryPoint {
 
 export interface BillingProjections {
   currency: string;
+  /** These panels report the PLATFORM-CURRENCY book only: splitting a
+   *  three-scenario forecast or a lifetime value per currency would triple the
+   *  payload to describe a handful of accounts. The count is how many accounts
+   *  that leaves out, and the UI has to say so — a scoped panel presenting
+   *  itself as the whole book is the same lie as a mixed-currency total. */
+  excluded_non_platform_count?: number;
+
   /** Real month-end net MRR for the trailing completed months, oldest first.
    *  Empty until the snapshot worker has a full month behind it. */
   history?: BillingMrrHistoryPoint[];
@@ -1114,6 +1148,13 @@ export interface PricingCohort {
 
 export interface PricingCohortComparison {
   currency: string;
+  /** These panels report the PLATFORM-CURRENCY book only: splitting a
+   *  three-scenario forecast or a lifetime value per currency would triple the
+   *  payload to describe a handful of accounts. The count is how many accounts
+   *  that leaves out, and the UI has to say so — a scoped panel presenting
+   *  itself as the whole book is the same lie as a mixed-currency total. */
+  excluded_non_platform_count?: number;
+  excluded_non_platform_active_count?: number;
   switch_at: string;
   blended_monthly_churn: number;
   reseller_excluded_count: number;
@@ -1163,6 +1204,12 @@ export interface ConversionCohorts {
   granularity: CohortGranularity;
   universe: CohortUniverse;
   currency: string;
+  /** These panels report the PLATFORM-CURRENCY book only: splitting a
+   *  three-scenario forecast or a lifetime value per currency would triple the
+   *  payload to describe a handful of accounts. The count is how many accounts
+   *  that leaves out, and the UI has to say so — a scoped panel presenting
+   *  itself as the whole book is the same lie as a mixed-currency total. */
+  excluded_non_platform_count?: number;
   cohorts: ConversionCohort[];
 }
 
