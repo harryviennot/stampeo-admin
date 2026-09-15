@@ -26,6 +26,7 @@ import { UpcomingPaymentsTable } from "./_components/upcoming-payments-table";
 import { AtRiskTable } from "./_components/at-risk-table";
 import { ConversionCohortTable } from "./_components/conversion-cohort-table";
 import { PricingCohortComparison } from "./_components/pricing-cohort-comparison";
+import { otherCurrencyText } from "@/lib/money";
 import { formatAmount } from "./_components/format";
 
 function KpiCard({
@@ -169,9 +170,18 @@ function LeakageCard({
   loading: boolean;
 }) {
   const currency = data?.currency ?? "eur";
+
   const leak = data?.discount_leakage;
   const gross = data?.gross_mrr ?? 0;
   const net = data?.net_mrr ?? 0;
+
+  /** Whatever the platform-currency slice above leaves out. */
+  const Other = ({ split }: { split?: Record<string, number> }) => {
+    const text = otherCurrencyText(split, currency, { withCode: true });
+    if (!text) return null;
+    return <p className="text-xs text-muted-foreground">{text}</p>;
+  };
+
   const waivedPct = gross > 0 ? Math.round(((gross - net) / gross) * 100) : 0;
 
   return (
@@ -188,7 +198,7 @@ function LeakageCard({
                 <p className="mt-1 text-muted-foreground">
                   Gross is the combined price of all active subscriptions; Net is
                   what&apos;s actually collected after coupons and comps (e.g. a
-                  100%-off account collects €0). The gap is the discount given
+                  100%-off account collects nothing). The gap is the discount given
                   away each month.
                 </p>
                 <p className="mt-1 text-muted-foreground">
@@ -208,23 +218,35 @@ function LeakageCard({
         ) : (
           <>
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {/* All three figures are the platform-currency slice, and the
+                  card's own heading calls them "combined". Each now carries
+                  what the slice leaves out, or the caption is simply false on
+                  a mixed book. */}
               <div>
                 <p className="text-xs text-muted-foreground">Gross MRR</p>
                 <p className="text-lg font-bold tabular-nums text-muted-foreground">
                   {formatAmount(gross, currency)}
                 </p>
+                <Other split={data?.gross_mrr_by_currency} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Net MRR</p>
                 <p className="text-lg font-bold tabular-nums">
                   {formatAmount(net, currency)}
                 </p>
+                <Other split={data?.net_mrr_by_currency} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Waived / mo</p>
                 <p className="text-lg font-bold tabular-nums text-amber-600">
                   {formatAmount((data?.discount_leakage?.monthly_waived) ?? 0, currency)}
                 </p>
+                <Other
+                  split={
+                    data?.discount_leakage?.monthly_waived_by_currency ??
+                    data?.waived_by_currency
+                  }
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fully comped</p>
@@ -256,6 +278,22 @@ export default function BillingPage() {
   const { data, isPending } = useBillingOverview();
   const currency = data?.currency ?? "eur";
 
+  /**
+   * The non-headline currencies of a figure, rendered beside it.
+   *
+   * Every money card shows the platform-currency SLICE. Showing only that, with
+   * no hint that another currency exists, is how "€0 trial pipeline" appeared
+   * above a live $49 trial — the figure was right and the page was a lie by
+   * omission.
+   */
+  const otherCurrencies = (
+    split: Record<string, number> | undefined,
+  ): React.ReactNode => {
+    const text = otherCurrencyText(split, currency);
+    if (!text) return null;
+    return <span className="text-muted-foreground">{text}</span>;
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -283,9 +321,20 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a €192/yr account contributes €16 rather than its upfront charge."
+          info={`Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. This figure is the ${currency.toUpperCase()} book only. Amounts in other currencies are reported separately and never converted: there is no exchange rate here, and summing them into one total would report revenue nobody can reconcile against Stripe.`}
           footer={
             <>
+              {/* Every currency other than the headline one. Without this the
+                  tooltip's promise that they are "reported separately" was
+                  false: the figures existed in the payload and appeared
+                  nowhere, so a USD book was invisible rather than reported. */}
+              {Object.entries(data?.net_mrr_by_currency ?? {})
+                .filter(([code]) => code !== currency)
+                .map(([code, amount]) => (
+                  <span key={code} className="text-muted-foreground">
+                    {formatAmount(amount, code)} ({code.toUpperCase()}) ·{" "}
+                  </span>
+                ))}
               {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) && (
                 <span className="text-muted-foreground">
                   {formatAmount(data?.gross_mrr, currency)} combined
@@ -303,6 +352,7 @@ export default function BillingPage() {
         <KpiCard
           label="ARR"
           value={formatAmount(data?.net_arr, currency)}
+          footer={otherCurrencies(data?.net_arr_by_currency)}
           loading={isPending}
           icon={<Coins className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
@@ -318,6 +368,7 @@ export default function BillingPage() {
         <KpiCard
           label="ARPA"
           value={formatAmount(data?.arpa, currency)}
+          footer={otherCurrencies(data?.arpa_by_currency)}
           loading={isPending}
           icon={<CreditCard className="h-4 w-4" />}
           info="Average net revenue per active account (net MRR ÷ active count)."
@@ -330,7 +381,10 @@ export default function BillingPage() {
           badgeClass="bg-blue-100 text-blue-700"
           info="Cash settled via Stripe so far this calendar month (post-discount)."
           footer={
-            <DeltaBadge deltaPct={data?.mom_growth_pct ?? null} label="vs last mo" />
+            <>
+              <DeltaBadge deltaPct={data?.mom_growth_pct ?? null} label="vs last mo" />
+              {otherCurrencies(data?.this_month_collected_by_currency)}
+            </>
           }
         />
         <KpiCard
@@ -339,15 +393,23 @@ export default function BillingPage() {
           loading={isPending}
           icon={<Hourglass className="h-4 w-4" />}
           badgeClass="bg-violet-100 text-violet-700"
-          info="Net MRR sitting in trials that have a card on file, if they all convert. Each trial is priced at its own plan, so founding-era trials count at €10/€20 and post-4-Aug ones at €20/€40 — watch the public share grow. No-card trials are excluded (no intent to pay)."
+          info="Net MRR sitting in trials that have a card on file, if they all convert. Each trial is priced at its own plan and its own currency, so founding-era trials count at the founding rate and post-4-Aug ones at public rates — watch the public share grow. No-card trials are excluded (no intent to pay)."
           footer={
             <>
+              {otherCurrencies(data?.trial_pipeline_mrr_by_currency)}
+              {otherCurrencies(data?.trial_pipeline_mrr_by_currency) ? " · " : ""}
               {`${data?.trial_pipeline_count ?? 0} with card`}
+              {/* The founding/public halves are the platform-currency slice,
+                  so their COUNTS are too. This read "1 at public rates (€0)"
+                  while the one public trial was the $49 — a count and the
+                  amount beside it have to describe the same rows. */}
               {(data?.trial_pipeline_public_count ?? 0) > 0 &&
                 ` · ${data?.trial_pipeline_public_count} at public rates (${formatAmount(
                   data?.trial_pipeline_public_mrr,
                   currency
                 )})`}
+              {(data?.trial_pipeline_non_platform_count ?? 0) > 0 &&
+                ` · ${data?.trial_pipeline_non_platform_count} in other currencies`}
               {(data?.no_card_trial_count ?? 0) > 0 &&
                 ` · ${data?.no_card_trial_count} no card (excluded)`}
             </>
@@ -372,6 +434,18 @@ export default function BillingPage() {
                 {`${formatAmount(data?.trial_pipeline_mrr, currency)} pipeline × ${Math.round(
                   data.trial_conversion_rate * 100
                 )}% conversion`}
+                {/* Built on the euro pipeline, so it read "expected €0" beside
+                    a live $49 trial. The rate applied is the platform book's —
+                    there is no US conversion history to measure one from yet. */}
+                {otherCurrencyText(
+                  data?.expected_trial_revenue_by_currency,
+                  currency
+                )
+                  ? ` · ${otherCurrencyText(
+                      data?.expected_trial_revenue_by_currency,
+                      currency
+                    )} expected`
+                  : ""}
               </>
             )
           }

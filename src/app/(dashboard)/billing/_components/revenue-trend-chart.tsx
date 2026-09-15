@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { useRevenueTrend } from "@/hooks/use-stats";
 import { formatAmount, formatAmountCompact, monthShort } from "./format";
+import { otherCurrencyText } from "@/lib/money";
 
 const config: ChartConfig = {
   collected: { label: "Collected", color: "var(--chart-1)" },
@@ -29,6 +30,21 @@ export function RevenueTrendChart() {
   const buckets = data?.buckets ?? [];
   const hasMrrHistory = buckets.some((b) => b.net_mrr !== null);
   const total = buckets.reduce((s, b) => s + b.collected, 0);
+  /**
+   * The bars are the platform-currency slice — a chart axis cannot carry two
+   * currencies without becoming the sum of both, which is exactly the line that
+   * drew September as 251808 for eur 180408 + usd 71400. So the other
+   * currencies are totalled and shown as text beside the header instead of
+   * being drawn.
+   */
+  const otherTotals = buckets.reduce<Record<string, number>>((acc, b) => {
+    for (const [code, amount] of Object.entries(b.collected_by_currency ?? {})) {
+      if (code === currency) continue;
+      acc[code] = (acc[code] ?? 0) + amount;
+    }
+    return acc;
+  }, {});
+  const otherText = otherCurrencyText(otherTotals, currency);
 
   return (
     <ChartCard
@@ -44,6 +60,11 @@ export function RevenueTrendChart() {
             invoices settled that month (already net of every coupon). The Net
             MRR line appears once daily snapshots have accrued history.
           </p>
+          <p className="mt-1 text-muted-foreground">
+            The bars are the {currency.toUpperCase()} book. Invoices in other
+            currencies are totalled beside the header rather than drawn: one
+            axis cannot carry two currencies without becoming the sum of both.
+          </p>
         </>
       }
       legend={
@@ -55,6 +76,11 @@ export function RevenueTrendChart() {
       headerRight={
         <span className="text-sm font-bold tabular-nums">
           {formatAmount(total, currency)}
+          {otherText && (
+            <span className="ml-2 font-normal text-muted-foreground">
+              + {otherText}
+            </span>
+          )}
         </span>
       }
     >
