@@ -321,7 +321,7 @@ export default function BillingPage() {
           loading={isPending}
           icon={<TrendingUp className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
-          info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. This figure is the EUR book only. Amounts in other currencies are reported separately and never converted: there is no exchange rate here, and summing dollars into a euro total would report revenue nobody can reconcile against Stripe."
+          info={`Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. This figure is the ${currency.toUpperCase()} book only. Amounts in other currencies are reported separately and never converted: there is no exchange rate here, and summing them into one total would report revenue nobody can reconcile against Stripe.`}
           footer={
             <>
               {/* Every currency other than the headline one. Without this the
