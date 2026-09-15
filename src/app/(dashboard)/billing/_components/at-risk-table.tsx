@@ -51,6 +51,15 @@ export function AtRiskTable() {
         data ? (
           <span className="text-sm font-bold tabular-nums text-red-600">
             {formatAmount(data.total_at_risk, currency)}
+            {/* The header is the platform-currency slice. Showing only that
+                above a dollar row read "EUR 0 at risk" over a $79 past-due. */}
+            {Object.entries<number>(data.total_at_risk_by_currency ?? {})
+              .filter(([code, amount]) => code !== currency && amount)
+              .map(([code, amount]) => (
+                <span key={code} className="ml-2 text-sm text-muted-foreground">
+                  + {formatAmount(amount, code)}
+                </span>
+              ))}
           </span>
         ) : undefined
       }

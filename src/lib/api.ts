@@ -909,6 +909,11 @@ export interface BillingOverview {
    *  NOT a total: there is no exchange rate here, and summing dollars into a
    *  euro figure reports revenue nobody can reconcile against Stripe. */
   net_mrr_by_currency?: Record<string, number>;
+  net_arr_by_currency?: Record<string, number>;
+  arpa_by_currency?: Record<string, number>;
+  this_month_collected_by_currency?: Record<string, number>;
+  last_month_collected_by_currency?: Record<string, number>;
+  trial_pipeline_mrr_by_currency?: Record<string, number>;
   gross_mrr_by_currency?: Record<string, number>;
   trial_mrr_by_currency?: Record<string, number>;
   stripe_error: string | null;
@@ -969,6 +974,9 @@ export interface AtRiskBucket {
 }
 
 export interface AtRiskPayments {
+  /** At-risk per currency. `total_at_risk` is the platform-currency
+   *  slice; showing only that read 'EUR 0 at risk' over a \$79 row. */
+  total_at_risk_by_currency?: Record<string, number>;
   currency: string;
   total_at_risk: number;
   buckets: AtRiskBucket[];

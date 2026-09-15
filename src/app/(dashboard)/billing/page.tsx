@@ -169,9 +169,11 @@ function LeakageCard({
   loading: boolean;
 }) {
   const currency = data?.currency ?? "eur";
+
   const leak = data?.discount_leakage;
   const gross = data?.gross_mrr ?? 0;
   const net = data?.net_mrr ?? 0;
+
   const waivedPct = gross > 0 ? Math.round(((gross - net) / gross) * 100) : 0;
 
   return (
@@ -256,6 +258,28 @@ export default function BillingPage() {
   const { data, isPending } = useBillingOverview();
   const currency = data?.currency ?? "eur";
 
+  /**
+   * The non-headline currencies of a figure, rendered beside it.
+   *
+   * Every money card shows the platform-currency SLICE. Showing only that, with
+   * no hint that another currency exists, is how "€0 trial pipeline" appeared
+   * above a live $49 trial — the figure was right and the page was a lie by
+   * omission.
+   */
+  const otherCurrencies = (
+    split: Record<string, number> | undefined,
+  ): React.ReactNode => {
+    const rest = Object.entries(split ?? {}).filter(
+      ([code, amount]) => code !== currency && amount,
+    );
+    if (!rest.length) return null;
+    return (
+      <span className="text-muted-foreground">
+        {rest.map(([code, amount]) => `${formatAmount(amount, code)}`).join(" · ")}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -314,6 +338,7 @@ export default function BillingPage() {
         <KpiCard
           label="ARR"
           value={formatAmount(data?.net_arr, currency)}
+          footer={otherCurrencies(data?.net_arr_by_currency)}
           loading={isPending}
           icon={<Coins className="h-4 w-4" />}
           badgeClass="bg-emerald-100 text-emerald-700"
@@ -329,6 +354,7 @@ export default function BillingPage() {
         <KpiCard
           label="ARPA"
           value={formatAmount(data?.arpa, currency)}
+          footer={otherCurrencies(data?.arpa_by_currency)}
           loading={isPending}
           icon={<CreditCard className="h-4 w-4" />}
           info="Average net revenue per active account (net MRR ÷ active count)."
@@ -341,7 +367,10 @@ export default function BillingPage() {
           badgeClass="bg-blue-100 text-blue-700"
           info="Cash settled via Stripe so far this calendar month (post-discount)."
           footer={
-            <DeltaBadge deltaPct={data?.mom_growth_pct ?? null} label="vs last mo" />
+            <>
+              <DeltaBadge deltaPct={data?.mom_growth_pct ?? null} label="vs last mo" />
+              {otherCurrencies(data?.this_month_collected_by_currency)}
+            </>
           }
         />
         <KpiCard
@@ -353,6 +382,8 @@ export default function BillingPage() {
           info="Net MRR sitting in trials that have a card on file, if they all convert. Each trial is priced at its own plan and its own currency, so founding-era trials count at the founding rate and post-4-Aug ones at public rates — watch the public share grow. No-card trials are excluded (no intent to pay)."
           footer={
             <>
+              {otherCurrencies(data?.trial_pipeline_mrr_by_currency)}
+              {otherCurrencies(data?.trial_pipeline_mrr_by_currency) ? " · " : ""}
               {`${data?.trial_pipeline_count ?? 0} with card`}
               {(data?.trial_pipeline_public_count ?? 0) > 0 &&
                 ` · ${data?.trial_pipeline_public_count} at public rates (${formatAmount(
