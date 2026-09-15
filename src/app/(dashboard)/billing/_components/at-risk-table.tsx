@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { useAtRiskPayments } from "@/hooks/use-stats";
 import type { AtRiskBucket } from "@/lib/api";
 import { formatAmount } from "./format";
+import { otherCurrencyText } from "@/lib/money";
 
 const BUCKET_META: Record<
   AtRiskBucket["bucket"],
@@ -51,6 +52,15 @@ export function AtRiskTable() {
         data ? (
           <span className="text-sm font-bold tabular-nums text-red-600">
             {formatAmount(data.total_at_risk, currency)}
+            {/* The header is the platform-currency slice. Showing only that
+                above a dollar row read "EUR 0 at risk" over a $79 past-due. */}
+            {Object.entries<number>(data.total_at_risk_by_currency ?? {})
+              .filter(([code, amount]) => code !== currency && amount)
+              .map(([code, amount]) => (
+                <span key={code} className="ml-2 text-sm text-muted-foreground">
+                  + {formatAmount(amount, code)}
+                </span>
+              ))}
           </span>
         ) : undefined
       }
@@ -77,6 +87,14 @@ export function AtRiskTable() {
                   </span>
                   <span className="text-sm font-semibold tabular-nums">
                     {formatAmount(b.amount_at_risk, currency)}
+                    {/* The bucket's COUNT spans currencies (the rows below each
+                        render their own), so its amount has to as well or the
+                        two describe different sets of rows. */}
+                    {otherCurrencyText(b.amount_at_risk_by_currency, currency) && (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        + {otherCurrencyText(b.amount_at_risk_by_currency, currency)}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <ul className="divide-y rounded-md border">
@@ -99,7 +117,7 @@ export function AtRiskTable() {
                         )}
                       </div>
                       <span className="shrink-0 text-sm tabular-nums">
-                        {formatAmount(r.net_amount, currency)}
+                        {formatAmount(r.net_amount, r.currency ?? currency)}
                       </span>
                     </li>
                   ))}

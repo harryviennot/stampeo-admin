@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { useBillingProjections } from "@/hooks/use-stats";
 import { formatAmount, formatAmountCompact } from "./format";
+import { excludedNote } from "@/lib/money";
 
 const config: ChartConfig = {
   actual: { label: "Actual", color: "var(--foreground)" },
@@ -118,8 +119,8 @@ export function ProjectionChart() {
           </p>
           <p className="mt-1 text-muted-foreground">
             <strong>New business is priced at public rates.</strong> Every
-            current payer is a grandfathered founding partner on €10/€20, but
-            new signups pay €20/€40, so the run rate is repriced forward rather
+            current payer is a grandfathered founding partner on the founding rate, but
+            new signups pay public rates, so the run rate is repriced forward rather
             than extrapolated
             {a?.conversion_haircut !== undefined
               ? ` — then discounted ${Math.round(
@@ -300,6 +301,15 @@ export function ProjectionChart() {
                 )
               )}
             </div>
+          )}
+          {/* This panel is the platform-currency book. Saying so is not
+              optional: a scoped figure presented as the whole book is the same
+              lie as a mixed-currency total, and the API published this count
+              while nothing rendered it. */}
+          {excludedNote(data?.excluded_non_platform_count, currency) && (
+            <p className="text-[11px] text-muted-foreground">
+              {excludedNote(data?.excluded_non_platform_count, currency)}
+            </p>
           )}
         </>
       )}

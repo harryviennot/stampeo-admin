@@ -6,6 +6,7 @@ import { SegmentedToggle } from "@/components/segmented-toggle";
 import { useConversionCohorts } from "@/hooks/use-stats";
 import type { CohortGranularity, CohortUniverse } from "@/lib/api";
 import { formatAmount } from "./format";
+import { excludedNote } from "@/lib/money";
 
 function pct(rate: number | null): number | null {
   return rate == null ? null : Math.round(rate * 100);
@@ -130,6 +131,15 @@ export function ConversionCohortTable({
               })}
             </tbody>
           </table>
+          {/* This panel is the platform-currency book. Saying so is not
+              optional: a scoped figure presented as the whole book is the same
+              lie as a mixed-currency total, and the API published this count
+              while nothing rendered it. */}
+          {excludedNote(data?.excluded_non_platform_count, currency) && (
+            <p className="text-[11px] text-muted-foreground">
+              {excludedNote(data?.excluded_non_platform_count, currency)}
+            </p>
+          )}
         </div>
       )}
     </ChartCard>
