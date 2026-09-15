@@ -834,6 +834,8 @@ export async function fetchRevenueSnapshot(): Promise<RevenueSnapshot> {
 // server-side, so a €192/yr plan contributes €16 to MRR.
 
 export interface BillingTierBreakdownRow {
+  /** Which currency this row's subtotals are in. */
+  currency?: string;
   tier: string;
   is_founding: boolean;
   count: number;
@@ -903,6 +905,12 @@ export interface BillingOverview {
     fully_comped_count: number;
   };
   tier_breakdown: BillingTierBreakdownRow[];
+  /** MRR per currency, unconverted. `net_mrr` above is the EUR slice of this,
+   *  NOT a total: there is no exchange rate here, and summing dollars into a
+   *  euro figure reports revenue nobody can reconcile against Stripe. */
+  net_mrr_by_currency?: Record<string, number>;
+  gross_mrr_by_currency?: Record<string, number>;
+  trial_mrr_by_currency?: Record<string, number>;
   stripe_error: string | null;
 }
 

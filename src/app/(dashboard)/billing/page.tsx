@@ -286,6 +286,17 @@ export default function BillingPage() {
           info="Monthly recurring revenue actually collected — combined subscription price minus every active discount/coupon. A 100%-off-for-a-year account counts as 0 until its coupon ends. Note this is money as billed: founding partners are on a discounted Stripe price, so their 50% is already netted out here. Yearly plans are amortized ÷12, so a yearly account contributes a twelfth of its total rather than its upfront charge. This figure is the EUR book only. Amounts in other currencies are reported separately and never converted: there is no exchange rate here, and summing dollars into a euro total would report revenue nobody can reconcile against Stripe."
           footer={
             <>
+              {/* Every currency other than the headline one. Without this the
+                  tooltip's promise that they are "reported separately" was
+                  false: the figures existed in the payload and appeared
+                  nowhere, so a USD book was invisible rather than reported. */}
+              {Object.entries(data?.net_mrr_by_currency ?? {})
+                .filter(([code]) => code !== currency)
+                .map(([code, amount]) => (
+                  <span key={code} className="text-muted-foreground">
+                    {formatAmount(amount, code)} ({code.toUpperCase()}) ·{" "}
+                  </span>
+                ))}
               {(data?.gross_mrr ?? 0) > (data?.net_mrr ?? 0) && (
                 <span className="text-muted-foreground">
                   {formatAmount(data?.gross_mrr, currency)} combined

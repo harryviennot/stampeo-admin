@@ -28,9 +28,13 @@ export function MrrByTierChart({
     data?.tier_breakdown.map((r) => ({
       // "·Y2" = 2 of this group's accounts pay yearly. Kept as a suffix rather
       // than a fourth bar: interval changes who pays when, not how much MRR.
+      // The currency is part of the label because the backend now emits one row
+      // per (tier, regime, CURRENCY): a USD Pro and a EUR Pro are different
+      // bars, and bars drawn on one axis without saying which currency they are
+      // in would be the mixed total this split exists to prevent.
       label: `${tierLabel(r.tier)}${r.is_founding ? " ·F" : ""}${
-        r.yearly_count ? ` ·Y${r.yearly_count}` : ""
-      }`,
+        r.currency && r.currency !== currency ? ` ·${r.currency.toUpperCase()}` : ""
+      }${r.yearly_count ? ` ·Y${r.yearly_count}` : ""}`,
       count: r.count,
       gross_subtotal: r.gross_subtotal,
       net_subtotal: r.net_subtotal,
