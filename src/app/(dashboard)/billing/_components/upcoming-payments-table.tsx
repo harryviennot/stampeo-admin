@@ -108,7 +108,7 @@ export function UpcomingPaymentsTable() {
                   {/* The real invoice amount, not the amortized monthly one:
                       a yearly plan is about to be charged its full year. */}
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatAmount(r.net_amount, currency)}
+                    {formatAmount(r.net_amount, r.currency ?? currency)}
                     {r.interval === "year" && (
                       <span className="text-[11px] font-normal text-muted-foreground">
                         /yr
@@ -116,7 +116,7 @@ export function UpcomingPaymentsTable() {
                     )}
                     {r.is_discounted && r.gross_amount > r.net_amount && (
                       <span className="block text-[11px] font-normal text-muted-foreground line-through">
-                        {formatAmount(r.gross_amount, currency)}
+                        {formatAmount(r.gross_amount, r.currency ?? currency)}
                       </span>
                     )}
                   </TableCell>

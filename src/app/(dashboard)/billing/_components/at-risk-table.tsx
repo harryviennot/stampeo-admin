@@ -99,7 +99,7 @@ export function AtRiskTable() {
                         )}
                       </div>
                       <span className="shrink-0 text-sm tabular-nums">
-                        {formatAmount(r.net_amount, currency)}
+                        {formatAmount(r.net_amount, r.currency ?? currency)}
                       </span>
                     </li>
                   ))}

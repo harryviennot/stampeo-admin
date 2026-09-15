@@ -938,6 +938,9 @@ export interface UpcomingPaymentRow {
   next_charge_at: string | null;
   net_amount: number;
   gross_amount: number;
+  /** This row's own currency. The response carries one `currency` for the whole
+   *  list, so a $49 and a $119 charge both rendered with a euro sign. */
+  currency?: string;
   is_discounted: boolean;
   is_trial_conversion: boolean;
   at_risk: boolean;
@@ -953,6 +956,8 @@ export interface AtRiskRow {
   name: string;
   tier: string;
   net_amount: number;
+  /** This row's own currency; the bucket total is the platform-currency slice. */
+  currency?: string;
   detail: string | null;
 }
 
